@@ -1,20 +1,25 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+### What is this repository for? ###
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+* Firmware development for a BLE-enabled transportation safety device
+* Development is NRF52832 specific
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+### Folders ###
+Organization is based on the open source SDK. Folders of interest include:
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://www.visualstudio.com/en-us/docs/git/create-a-readme). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+* ./examples/peripheral
+* ./examples/ble_peripheral
+
+### How do I get set up? ###
+
+* Follow the SDK setup steps found [here](https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk52.v0.9.1%2Findex.html)
+* [Segger Embedded Studio](https://www.segger.com/products/development-tools/embedded-studio/) is a good, free, IDE
+* Code that Mike is working on will be in folders with mike in the name. Ex: ./examples/peripheral/twi_mike_newtemplate
+
+### Contribution guidelines ###
+
+* Make issues if you find bugs or want features
+
+### Who do I talk to? ###
+
+* Repo admin: please send emails with title 'rStrap Firmware - *Question/Comment*' to bardwell@ualberta.ca
