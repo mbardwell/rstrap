@@ -4,12 +4,9 @@
 * Firmware development for a BLE-enabled transportation safety device
 * Development is NRF52832 specific
 
-### Folders ###
-Organization is based on the open source SDK. Folders of interest include:
+### Resources ###
 
-* ./examples/peripheral
-* ./examples/ble_peripheral
-* Code that Mike is working on will be in folders with mike in the name; ex: ./examples/peripheral/twi_mike_newtemplate
+* [HX711 BLE UART sample code](https://devzone.nordicsemi.com/f/nordic-q-a/40271/timer-issue-with-hx711---stopped-by-vector-catch-error)
 
 ### How do I get set up? ###
 
