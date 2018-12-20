@@ -2,7 +2,7 @@
 ### What is this repository for? ###
 
 * Firmware development for a BLE-enabled transportation safety device
-* Development is NRF52832 specific
+* Development is NRF52832 specific. Tests are run on a Fanstel BlueNor BT832F
 
 ### Resources ###
 
@@ -12,7 +12,7 @@
 
 * Follow the SDK setup steps found [here](https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk52.v0.9.1%2Findex.html)
 * [Segger Embedded Studio](https://www.segger.com/products/development-tools/embedded-studio/) is a good, free, IDE
-* Once SDK and Segger are setup. Place twi_mike folder from repo in ./examples/peripheral and open twi_mike.emProject (found in twi_mike\pca10040\blank\ses\). You now have access to all source files and can upload code to the NRF52 DK
+* Once SDK and Segger are setup. To compile any of the example code provided (each example is in its own folder), follow the instructions of the README in that folder.
 
 
 ### Contribution guidelines ###
