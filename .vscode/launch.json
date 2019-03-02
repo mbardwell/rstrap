@@ -13,9 +13,8 @@
             "servertype": "jlink",
             "device": "nrf52",
             "interface": "swd",
-            // "ipAddress": null,
-            // "serialNumber": null,
-            // "armToolchainPath": "C:/Users/Michael/Downloads/windows-arm-toolchain/gcc-arm-none-eabi/bin/"
+            "showDevDebugOutput": false,
+            "svdFile": "./nrf52.svd"
         }
     ]
 }   
