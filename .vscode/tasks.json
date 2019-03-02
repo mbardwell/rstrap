@@ -1,0 +1,28 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build rStrap",
+            "type": "shell",
+            "command": "make -j8 -C ./nRF5_SDK_15.2.0_9412b96/examples/ble_peripheral/ble_app_hts/pca10040/s132/armgcc/",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "flash rStrap",
+            "type": "shell",
+            "command": "make -j8 flash -C ./nRF5_SDK_15.2.0_9412b96/examples/ble_peripheral/ble_app_hts/pca10040/s132/armgcc/",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"            
+        }
+    ]
+}

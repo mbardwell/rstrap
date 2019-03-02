@@ -49,8 +49,8 @@
  * This application uses the @ref srvlib_conn_params module.
  */
 
-#include <stdint.h>
-#include <string.h>
+#include "stdint.h"
+#include "string.h"
 #include "nordic_common.h"
 #include "nrf.h"
 #include "app_error.h"
@@ -78,6 +78,7 @@
 #include "nrf_ble_qwr.h"
 #include "nrf_pwr_mgmt.h"
 #include "config.h"
+#include "battery.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -212,16 +213,17 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 static void battery_level_update(void)
 {
     ret_code_t err_code;
-    uint8_t  battery_level;
+    uint8_t battery_level;
 
     if (simEnabled)
     {
-        battery_level = (uint8_t)sensorsim_measure(&m_battery_sim_state, &m_battery_sim_cfg);
+        battery_level = (uint8_t) sensorsim_measure(&m_battery_sim_state, &m_battery_sim_cfg);
     }
     else
     {
-
+        battery_level = ReadBatteryLevel();
     }
+    
 
     err_code = ble_bas_battery_level_update(&m_bas, battery_level, BLE_CONN_HANDLE_ALL);
     if ((err_code != NRF_SUCCESS) &&
@@ -234,7 +236,6 @@ static void battery_level_update(void)
         APP_ERROR_HANDLER(err_code);
     }
 }
-
 
 /**@brief Function for handling the Battery measurement timer timeout.
  *

@@ -1,7 +1,7 @@
-#include <stdbool.h>
+#ifndef CONFIG_H
+#define CONFIG_H
 
-#ifndef MAIN_H
-#define MAIN_H
+#include <stdbool.h>
 
 #define SIMULATION
 
