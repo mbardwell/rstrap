@@ -131,6 +131,7 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
+APP_TIMER_DEF(m_hts_timer_id);                                                      // Health thermometer service timer
 APP_TIMER_DEF(m_tension_timer_id);                                                  // Tension timer
 BLE_NUS_DEF(m_nus, 1);                                                              // Nordic UART Service structure
 APP_TIMER_DEF(m_battery_timer_id);                                                  /**< Battery timer. */
@@ -162,6 +163,7 @@ static ble_uuid_t m_adv_uuids[] =                                               
 
 static void advertising_start(bool erase_bonds);
 static void temperature_measurement_send(void);
+static void hts_sim_measurement(ble_hts_meas_t * p_meas);
 
 
 /**@brief Callback function for asserts in the SoftDevice.
@@ -283,6 +285,12 @@ static void tension_timer_timeout_handler(void * p_context)
     TensionLevelUpdate();
 }
 
+static void hts_timer_timeout_handler(void * p_context)
+{
+    UNUSED_PARAMETER(p_context);
+    temperature_measurement_send();
+}
+
 
 /**@brief Function for populating simulated health thermometer measurement.
  */
@@ -340,6 +348,11 @@ static void timers_init(void)
     err_code = app_timer_create(&m_tension_timer_id,
                                 APP_TIMER_MODE_REPEATED,
                                 tension_timer_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&m_hts_timer_id,
+                                APP_TIMER_MODE_REPEATED,
+                                hts_timer_timeout_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -607,6 +620,9 @@ static void application_timers_start(void)
     APP_ERROR_CHECK(err_code);
 
     err_code = app_timer_start(m_tension_timer_id, APP_TIMER_TICKS(2000), NULL);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_start(m_hts_timer_id, APP_TIMER_TICKS(2000), NULL);
     APP_ERROR_CHECK(err_code);
 }
 
