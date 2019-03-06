@@ -131,15 +131,17 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-
+APP_TIMER_DEF(m_tension_timer_id);                                                  // Tension timer
+BLE_NUS_DEF(m_nus, 1);                                                              // Nordic UART Service structure
 APP_TIMER_DEF(m_battery_timer_id);                                                  /**< Battery timer. */
 BLE_BAS_DEF(m_bas);                                                                 /**< Structure used to identify the battery service. */
 BLE_HTS_DEF(m_hts);                                                                 /**< Structure used to identify the health thermometer service. */
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
-BLE_NUS_DEF(m_nus, 1);
 
+static sensorsim_cfg_t   m_tension_sim_cfg;                                         // Tension sensor simulator configuration
+static sensorsim_state_t m_tension_sim_state;                                       // Tension sensor simulator state
 static uint16_t          m_conn_handle = BLE_CONN_HANDLE_INVALID;                   /**< Handle of the current connection. */
 static uint16_t          m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3; 
 static bool              m_hts_meas_ind_conf_pending = false;                       /**< Flag to keep track of when an indication confirmation is pending. */
@@ -149,7 +151,7 @@ static sensorsim_cfg_t   m_temp_celcius_sim_cfg;                                
 static sensorsim_state_t m_temp_celcius_sim_state;                                  /**< Temperature simulator state. */
 
 /* Not enough bytes left for us to include the NUS service in 
-   the adv packet */
+   the adv packet; once we connect the NUS is visible. */
 static ble_uuid_t m_adv_uuids[] =                                                   /**< Universally unique service identifiers. */
 {
     {BLE_UUID_HEALTH_THERMOMETER_SERVICE, BLE_UUID_TYPE_BLE},
@@ -213,6 +215,25 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
     }
 }
 
+static void TensionLevelUpdate(void)
+{
+    uint32_t tension_level = 0;
+    uint8_t tension[4];
+    uint16_t len = 0;
+    
+    if (simEnabled)
+    {
+        tension_level = sensorsim_measure(&m_tension_sim_state, &m_tension_sim_cfg);
+        len = uint32_encode(tension_level, tension);
+    }
+    else
+    {
+        // TODO: When hardware works implement tension_level = ReadTensionLevel();
+    }
+
+    /* For some reason using APP_ERROR_HANDLER causes app to stall here. So we don't check err codes */
+    ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
+}
 
 /**@brief Function for performing a battery measurement, and update the Battery Level characteristic in the Battery Service.
  */
@@ -254,6 +275,12 @@ static void battery_level_meas_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
     battery_level_update();
+}
+
+static void tension_timer_timeout_handler(void * p_context)
+{
+    UNUSED_PARAMETER(p_context);
+    TensionLevelUpdate();
 }
 
 
@@ -308,6 +335,11 @@ static void timers_init(void)
     err_code = app_timer_create(&m_battery_timer_id,
                                 APP_TIMER_MODE_REPEATED,
                                 battery_level_meas_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&m_tension_timer_id,
+                                APP_TIMER_MODE_REPEATED,
+                                tension_timer_timeout_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -540,6 +572,13 @@ static void services_init(void)
  */
 static void sensor_simulator_init(void)
 {
+    m_tension_sim_cfg.min          = 5000;
+    m_tension_sim_cfg.max          = 30000;
+    m_tension_sim_cfg.incr         = 1000;
+    m_tension_sim_cfg.start_at_max = true;
+
+    sensorsim_init(&m_tension_sim_state, &m_tension_sim_cfg);
+
     m_battery_sim_cfg.min          = MIN_BATTERY_LEVEL;
     m_battery_sim_cfg.max          = MAX_BATTERY_LEVEL;
     m_battery_sim_cfg.incr         = BATTERY_LEVEL_INCREMENT;
@@ -565,6 +604,9 @@ static void application_timers_start(void)
 
     // Start application timers.
     err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_start(m_tension_timer_id, APP_TIMER_TICKS(2000), NULL);
     APP_ERROR_CHECK(err_code);
 }
 
