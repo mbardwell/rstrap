@@ -234,7 +234,8 @@ static void TensionLevelUpdate(void)
     }
     else
     {
-        // TODO: When hardware works implement tension_level = ReadTensionLevel();
+        tension_level = ReadTensionLevel();
+        len = uint32_encode(tension_level, tension);
     }
 
     err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
