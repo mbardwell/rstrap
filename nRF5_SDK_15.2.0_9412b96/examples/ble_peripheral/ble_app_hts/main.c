@@ -221,6 +221,7 @@ static void TensionLevelUpdate(void)
 {
     NRF_LOG_DEBUG("Sending tension measurement");
 
+    ret_code_t err_code;
     uint32_t tension_level = 0;
     uint8_t tension[4];
     uint16_t len = 0;
@@ -236,8 +237,11 @@ static void TensionLevelUpdate(void)
         // TODO: When hardware works implement tension_level = ReadTensionLevel();
     }
 
-    /* For some reason using APP_ERROR_HANDLER causes app to stall here. So we don't check err codes */
-    ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
+    err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
+    if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
+    {
+        APP_ERROR_CHECK(err_code);
+    }
 }
 
 /**@brief Function for performing a battery measurement, and update the Battery Level characteristic in the Battery Service.
