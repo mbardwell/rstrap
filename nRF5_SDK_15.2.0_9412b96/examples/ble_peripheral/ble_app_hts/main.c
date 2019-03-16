@@ -120,7 +120,7 @@
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000)                      /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
 
-#define SEC_PARAM_BOND                  1                                           /**< Perform bonding. */
+#define SEC_PARAM_BOND                  0                                           /**< Perform bonding. */
 #define SEC_PARAM_MITM                  0                                           /**< Man In The Middle protection not required. */
 #define SEC_PARAM_LESC                  0                                           /**< LE Secure Connections not enabled. */
 #define SEC_PARAM_KEYPRESS              0                                           /**< Keypress notifications not enabled. */
@@ -219,9 +219,12 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 
 static void TensionLevelUpdate(void)
 {
+    NRF_LOG_DEBUG("Sending tension measurement");
+
     uint32_t tension_level = 0;
     uint8_t tension[4];
     uint16_t len = 0;
+
     
     if (simEnabled)
     {
@@ -241,6 +244,8 @@ static void TensionLevelUpdate(void)
  */
 static void battery_level_update(void)
 {
+    NRF_LOG_DEBUG("Sending battery measurement");
+
     ret_code_t err_code;
     uint8_t battery_level;
 
@@ -417,8 +422,11 @@ static void gatt_init(void)
  */
 static void temperature_measurement_send(void)
 {
+    NRF_LOG_DEBUG("Sending temperature measurement");
+
     ble_hts_meas_t simulated_meas;
     ret_code_t     err_code;
+
 
     if (!m_hts_meas_ind_conf_pending)
     {
@@ -626,6 +634,23 @@ static void application_timers_start(void)
     APP_ERROR_CHECK(err_code);
 }
 
+/**@brief Function for stopping application timers.
+ */
+static void application_timers_stop(void)
+{
+    ret_code_t err_code;
+    
+    // Start application timers.
+    err_code = app_timer_stop(m_battery_timer_id);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_stop(m_tension_timer_id);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_stop(m_hts_timer_id);
+    APP_ERROR_CHECK(err_code);
+}
+
 
 /**@brief Function for handling the Connection Parameters Module.
  *
@@ -749,12 +774,16 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
+            err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
+            APP_ERROR_CHECK(err_code);
+            application_timers_start();
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("Disconnected.");
             m_conn_handle               = BLE_CONN_HANDLE_INVALID;
             m_hts_meas_ind_conf_pending = false;
+            application_timers_stop();
             break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
@@ -782,6 +811,12 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_DEBUG("GATT Server Timeout.");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_GATTS_EVT_SYS_ATTR_MISSING:
+            // No system attributes have been stored.
+            err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
             APP_ERROR_CHECK(err_code);
             break;
 
@@ -886,10 +921,10 @@ static void peer_manager_init(void)
     sec_param.oob            = SEC_PARAM_OOB;
     sec_param.min_key_size   = SEC_PARAM_MIN_KEY_SIZE;
     sec_param.max_key_size   = SEC_PARAM_MAX_KEY_SIZE;
-    sec_param.kdist_own.enc  = 1;
-    sec_param.kdist_own.id   = 1;
-    sec_param.kdist_peer.enc = 1;
-    sec_param.kdist_peer.id  = 1;
+    sec_param.kdist_own.enc  = 0;
+    sec_param.kdist_own.id   = 0;
+    sec_param.kdist_peer.enc = 0;
+    sec_param.kdist_peer.id  = 0;
 
     err_code = pm_sec_params_set(&sec_param);
     APP_ERROR_CHECK(err_code);
@@ -1035,7 +1070,6 @@ int main(void)
 
     // Start execution.
     NRF_LOG_INFO("Health Thermometer example started.");
-    application_timers_start();
     advertising_start(erase_bonds);
 
     // Enter main loop.
