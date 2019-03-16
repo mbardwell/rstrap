@@ -81,6 +81,7 @@
 #include "battery.h"
 #include "ble_nus.h"
 #include "tension.h"
+#include "temperature.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -219,8 +220,6 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 
 static void TensionLevelUpdate(void)
 {
-    NRF_LOG_DEBUG("Sending tension measurement");
-
     ret_code_t err_code;
     uint32_t tension_level = 0;
     uint8_t tension[4];
@@ -238,6 +237,8 @@ static void TensionLevelUpdate(void)
         len = uint32_encode(tension_level, tension);
     }
 
+    NRF_LOG_DEBUG("Sending tension measurement: %d, tension: %d, len: %d", tension_level, *tension, len);
+
     err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
     if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
     {
@@ -249,8 +250,6 @@ static void TensionLevelUpdate(void)
  */
 static void battery_level_update(void)
 {
-    NRF_LOG_DEBUG("Sending battery measurement");
-
     ret_code_t err_code;
     uint8_t battery_level;
 
@@ -263,6 +262,7 @@ static void battery_level_update(void)
         battery_level = ReadBatteryLevel();
     }
     
+    NRF_LOG_DEBUG("Sending battery measurement: %d", battery_level);
 
     err_code = ble_bas_battery_level_update(&m_bas, battery_level, BLE_CONN_HANDLE_ALL);
     if ((err_code != NRF_SUCCESS) &&
@@ -429,15 +429,25 @@ static void temperature_measurement_send(void)
 {
     NRF_LOG_DEBUG("Sending temperature measurement");
 
-    ble_hts_meas_t simulated_meas;
+    ble_hts_meas_t temperature_meas;
     ret_code_t     err_code;
 
 
     if (!m_hts_meas_ind_conf_pending)
     {
-        hts_sim_measurement(&simulated_meas);
+        if (simEnabled)
+        {
+            hts_sim_measurement(&temperature_meas);
+        }
+        else
+        {
+            ReadTemperature(&temperature_meas);
+        }
 
-        err_code = ble_hts_measurement_send(&m_hts, &simulated_meas);
+        /* For logging instead of including the entire math library I just assume .exponent = -2 (ie mantissa x 0.01)*/
+        NRF_LOG_DEBUG("Sending temperature measurement: %d", temperature_meas.temp_in_celcius.mantissa*0.01); 
+
+        err_code = ble_hts_measurement_send(&m_hts, &temperature_meas);
 
         switch (err_code)
         {
