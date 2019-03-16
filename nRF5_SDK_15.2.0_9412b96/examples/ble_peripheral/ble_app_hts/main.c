@@ -256,23 +256,24 @@ static void battery_level_update(void)
     if (simEnabled)
     {
         battery_level = (uint8_t) sensorsim_measure(&m_battery_sim_state, &m_battery_sim_cfg);
+        NRF_LOG_DEBUG("Sending battery measurement: %d", battery_level);
+
+        err_code = ble_bas_battery_level_update(&m_bas, battery_level, m_conn_handle);
+        if ((err_code != NRF_SUCCESS) &&
+            (err_code != NRF_ERROR_INVALID_STATE) &&
+            (err_code != NRF_ERROR_RESOURCES) &&
+            (err_code != NRF_ERROR_BUSY) &&
+            (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+        )
+        {
+            APP_ERROR_HANDLER(err_code);
+        }
     }
     else
     {
-        battery_level = ReadBatteryLevel();
-    }
-    
-    NRF_LOG_DEBUG("Sending battery measurement: %d", battery_level);
-
-    err_code = ble_bas_battery_level_update(&m_bas, battery_level, BLE_CONN_HANDLE_ALL);
-    if ((err_code != NRF_SUCCESS) &&
-        (err_code != NRF_ERROR_INVALID_STATE) &&
-        (err_code != NRF_ERROR_RESOURCES) &&
-        (err_code != NRF_ERROR_BUSY) &&
-        (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-       )
-    {
-        APP_ERROR_HANDLER(err_code);
+        /* Since the ADC reading is asynchronous, this function will just start the ADC conversion
+           process. The battery level update will be sent from within the ADC interrupt handler */
+        StartBatteryADC();
     }
 }
 
@@ -1082,6 +1083,7 @@ int main(void)
     sensor_simulator_init();
     conn_params_init();
     peer_manager_init();
+    BatteryADCInit();
 
     // Start execution.
     NRF_LOG_INFO("Health Thermometer example started.");

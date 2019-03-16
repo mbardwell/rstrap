@@ -3,6 +3,7 @@
 
 #include "stdint.h"
 
-uint8_t ReadBatteryLevel();
+void BatteryADCInit();
+void StartBatteryADC();
 
 #endif
