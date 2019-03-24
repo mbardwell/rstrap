@@ -239,19 +239,17 @@ static void TensionLevelUpdate(void)
     {
         tension_level = sensorsim_measure(&m_tension_sim_state, &m_tension_sim_cfg);
         len = uint32_encode(tension_level, tension);
+        NRF_LOG_DEBUG("Sending tension measurement: %d", *tension);
+
+        err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
+        if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
+        {
+            APP_ERROR_CHECK(err_code);
+        }
     }
     else
     {
-        tension_level = ReadTensionLevel();
-        len = uint32_encode(tension_level, tension);
-    }
-
-    NRF_LOG_DEBUG("Sending tension measurement: %d", *tension);
-
-    err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
-    if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
-    {
-        APP_ERROR_CHECK(err_code);
+        StartTensionSample();
     }
 }
 
@@ -1097,6 +1095,8 @@ int main(void)
     conn_params_init();
     peer_manager_init();
     BatteryADCInit();
+    TensionCommunicationInit(&m_nus, &m_conn_handle);
+    
 
     // Start execution.
     NRF_LOG_INFO("Health Thermometer example started.");

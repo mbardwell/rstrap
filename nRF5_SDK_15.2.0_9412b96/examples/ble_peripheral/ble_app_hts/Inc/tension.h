@@ -2,9 +2,12 @@
 #define TENSION_H
 
 #include "stdint.h"
+#include "ble_nus.h"
 
-#define tension_measurement_send(...) ble_nus_data_send(...)
 
-uint32_t ReadTensionLevel();
+typedef uint16_t conn_handle_t; // 
+void TensionCommunicationInit(ble_nus_t *nus, conn_handle_t *handle);
+void StartTensionSample();
+
 
 #endif
