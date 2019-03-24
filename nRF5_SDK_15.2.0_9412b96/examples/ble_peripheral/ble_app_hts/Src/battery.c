@@ -5,7 +5,7 @@
 
 void StartBatteryADC()
 {
-    // Start ADC
+    // If we want to use asynchronous sampling, start ADC here
 }
 
 #define ADC_REF_VOLTAGE_IN_MILLIVOLTS  600  //!< Reference voltage (in milli volts) used by ADC while doing conversion.
@@ -17,22 +17,27 @@ void StartBatteryADC()
 
 static void saadc_event_handler(nrf_drv_saadc_evt_t const * p_evt)
 {
+    // This can also be accomplished by nrf_drv_saadc_buffer_convert
     if (p_evt->type == NRFX_SAADC_EVT_DONE)
     {
         nrf_saadc_value_t adc_result;
 
         adc_result = p_evt->data.done.p_buffer[0];
 
-        uint16_t dummy =
-            ADC_RESULT_IN_MILLI_VOLTS(adc_result) + DIODE_FWD_VOLT_DROP_MILLIVOLTS;
+        uint16_t dummy = ADC_RESULT_IN_MILLI_VOLTS(adc_result) + DIODE_FWD_VOLT_DROP_MILLIVOLTS;
         
         NRF_LOG_DEBUG("Battery in mV: %d", dummy);
     }
 }
 
-void BatteryADCInit(void)
+void BatteryADCInit()
 {
     ret_code_t err_code;
     err_code = nrf_drv_saadc_init(NULL, saadc_event_handler);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_saadc_channel_config_t channel_config =
+    NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_VDD);
+    err_code = nrf_drv_saadc_channel_init(0, &channel_config);
     APP_ERROR_CHECK(err_code);
 }

@@ -82,6 +82,7 @@
 #include "ble_nus.h"
 #include "tension.h"
 #include "temperature.h"
+#include "nrf_drv_saadc.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -237,7 +238,7 @@ static void TensionLevelUpdate(void)
         len = uint32_encode(tension_level, tension);
     }
 
-    NRF_LOG_DEBUG("Sending tension measurement: %d, tension: %d, len: %d", tension_level, *tension, len);
+    NRF_LOG_DEBUG("Sending tension measurement: %d", *tension);
 
     err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
     if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
@@ -251,29 +252,29 @@ static void TensionLevelUpdate(void)
 static void battery_level_update(void)
 {
     ret_code_t err_code;
-    uint8_t battery_level;
+    nrf_saadc_value_t battery_level;
 
     if (simEnabled)
     {
-        battery_level = (uint8_t) sensorsim_measure(&m_battery_sim_state, &m_battery_sim_cfg);
-        NRF_LOG_DEBUG("Sending battery measurement: %d", battery_level);
-
-        err_code = ble_bas_battery_level_update(&m_bas, battery_level, m_conn_handle);
-        if ((err_code != NRF_SUCCESS) &&
-            (err_code != NRF_ERROR_INVALID_STATE) &&
-            (err_code != NRF_ERROR_RESOURCES) &&
-            (err_code != NRF_ERROR_BUSY) &&
-            (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-        )
-        {
-            APP_ERROR_HANDLER(err_code);
-        }
+        battery_level = (nrf_saadc_value_t) sensorsim_measure(&m_battery_sim_state, &m_battery_sim_cfg);
     }
     else
     {
-        /* Since the ADC reading is asynchronous, this function will just start the ADC conversion
-           process. The battery level update will be sent from within the ADC interrupt handler */
-        StartBatteryADC();
+        err_code = nrfx_saadc_sample_convert(NRF_SAADC_INPUT_VDD, &battery_level);
+        APP_ERROR_CHECK(err_code);
+    }
+
+    NRF_LOG_DEBUG("Sending battery measurement: %d", battery_level);
+
+    err_code = ble_bas_battery_level_update(&m_bas, (uint8_t) battery_level, m_conn_handle);
+    if ((err_code != NRF_SUCCESS) &&
+        (err_code != NRF_ERROR_INVALID_STATE) &&
+        (err_code != NRF_ERROR_RESOURCES) &&
+        (err_code != NRF_ERROR_BUSY) &&
+        (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+    )
+    {
+        APP_ERROR_HANDLER(err_code);
     }
 }
 
@@ -428,8 +429,6 @@ static void gatt_init(void)
  */
 static void temperature_measurement_send(void)
 {
-    NRF_LOG_DEBUG("Sending temperature measurement");
-
     ble_hts_meas_t temperature_meas;
     ret_code_t     err_code;
 

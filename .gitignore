@@ -1,3 +1,15 @@
 rstrap.code-workspace
 .vscode/.cortex-debug.peripherals.state.json
 .vscode/.cortex-debug.registers.state.json
+cpptools-win32.vsix
+.vscode/ipch/1ffb3308e3f08177/MAIN.ipch
+.vscode/ipch/1ffb3308e3f08177/mmap_address.bin
+.vscode/ipch/52fd5d002f88b67c/BLE_BAS.ipch
+.vscode/ipch/52fd5d002f88b67c/mmap_address.bin
+.vscode/ipch/5587d60beda1c89a/BATTERY.ipch
+.vscode/ipch/5587d60beda1c89a/mmap_address.bin
+.vscode/ipch/c906bf2b602fe6ca/NRFX_SAADC.ipch
+.vscode/ipch/c906bf2b602fe6ca/mmap_address.bin
+.vscode/ipch/d6c6067c7f6918d9/mmap_address.bin
+.vscode/ipch/f9a0a6cd9fa201a4/MAIN.ipch
+.vscode/ipch/f9a0a6cd9fa201a4/mmap_address.bin

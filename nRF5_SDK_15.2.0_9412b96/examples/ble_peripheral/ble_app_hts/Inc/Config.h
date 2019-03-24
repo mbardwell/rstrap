@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define SIMULATION
+// #define SIMULATION
 
 #ifdef SIMULATION
     bool simEnabled = true;
