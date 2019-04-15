@@ -8,6 +8,16 @@ PROJ_DIR := ../../..
 $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
   LINKER_SCRIPT  := ble_app_hts_gcc_nrf52.ld
 
+######################################
+# building variables
+######################################
+# debug build?
+DEBUG ?= 0
+# optimization
+OPT = -O3
+# Uncomment the line below to enable link time optimization
+#OPT += -flto
+
 # Source files common to all targets
 SRC_FILES += \
   $(PROJ_DIR)/Src/main.c \
@@ -90,7 +100,7 @@ SRC_FILES += \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_soc.c \
-
+  
 # Include folders common to all targets
 INC_FOLDERS += \
   $(PROJ_DIR)/Inc \
@@ -232,10 +242,11 @@ INC_FOLDERS += \
 # Libraries common to all targets
 LIB_FILES += \
 
-# Optimization flags
-OPT = -O3 -g3
-# Uncomment the line below to enable link time optimization
-#OPT += -flto
+# Debug option
+ifeq ($(DEBUG), 1)
+C_DEFS += -DDEBUG_BUILD
+OPT = -Og
+endif
 
 # C flags common to all targets
 CFLAGS += $(OPT)
@@ -251,13 +262,12 @@ CFLAGS += -DSOFTDEVICE_PRESENT
 CFLAGS += -DSWI_DISABLE0
 CFLAGS += -mcpu=cortex-m4
 CFLAGS += -mthumb -mabi=aapcs
-CFLAGS += -Wall -Werror
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in a separate section, this allows linker to discard unused ones
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
-CFLAGS += -DDEBUG
-CFLAGS += -Wall -Werror -O0 -g3
+CFLAGS += -Wall -g3
+# CFLAGS += -Werror # if you want warnings treated as errors
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT) -std=c++1z
@@ -322,7 +332,7 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 # Clean
 clean:
-	dm $(PROJ_DIR)/pca10040/s132/armgcc/_build /s /q
+	del /s /q _build
 
 # Flash the program
 flash: default
