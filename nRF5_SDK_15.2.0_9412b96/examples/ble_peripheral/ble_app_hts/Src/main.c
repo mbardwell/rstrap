@@ -1096,7 +1096,15 @@ int main(void)
     peer_manager_init();
     BatteryADCInit();
     TensionCommunicationInit(&m_nus, &m_conn_handle);
-    
+
+    if (debugEnabled)
+    {
+        NRF_LOG_INFO("This is a debug build!!");
+    }
+    if (simEnabled)
+    {
+        NRF_LOG_INFO("This is a simulated build!!");
+    }
 
     // Start execution.
     NRF_LOG_INFO("Health Thermometer example started.");
