@@ -1,4 +1,3 @@
-/**
  * Copyright (c) 2014 - 2018, Nordic Semiconductor ASA
  *
  * All rights reserved.
@@ -84,6 +83,7 @@
 #include "temperature.h"
 #include "nrf_drv_saadc.h"
 #include "stdlib.h"
+#include "cppmain.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -1025,18 +1025,6 @@ static void power_management_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for handling the idle state (main loop).
- *
- * @details If there is no pending log operation, then sleep until next the next event occurs.
- */
-static void idle_state_handle(void)
-{
-    if (NRF_LOG_PROCESS() == false)
-    {
-        nrf_pwr_mgmt_run();
-    }
-}
-
 /**@brief Function for starting advertising.
  */
 static void advertising_start(bool erase_bonds)
@@ -1088,11 +1076,7 @@ int main(void)
     NRF_LOG_INFO("Health Thermometer example started.");
     advertising_start(erase_bonds);
 
-    // Enter main loop.
-    for (;;)
-    {
-        idle_state_handle();
-    }
+    cppmain();
 }
 
 /**

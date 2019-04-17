@@ -102,7 +102,8 @@ SRC_FILES += \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c \
   $(SDK_ROOT)/components/softdevice/common/nrf_sdh_soc.c \
-  
+  $(PROJ_DIR)/Src/cppmain.cpp
+
 # Include folders common to all targets
 INC_FOLDERS += \
   $(PROJ_DIR)/Inc \
