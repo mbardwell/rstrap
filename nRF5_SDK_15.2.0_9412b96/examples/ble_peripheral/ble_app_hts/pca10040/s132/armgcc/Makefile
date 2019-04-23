@@ -13,6 +13,8 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 ######################################
 # debug build?
 DEBUG ?= 0
+# simulation build?
+SIMULATE ?= 0
 # optimization
 OPT = -O3
 # Uncomment the line below to enable link time optimization
@@ -244,8 +246,12 @@ LIB_FILES += \
 
 # Debug option
 ifeq ($(DEBUG), 1)
-C_DEFS += -DDEBUG_BUILD
-OPT = -Og
+	C_DEFS += -DDEBUG
+	OPT = -Og
+endif
+
+ifeq ($(SIMULATE), 1)
+	C_DEFS += -DSIMULATE
 endif
 
 # C flags common to all targets
@@ -267,6 +273,7 @@ CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
 CFLAGS += -Wall -g3
+CFLAGS += $(C_DEFS)
 # CFLAGS += -Werror # if you want warnings treated as errors
 
 # C++ flags common to all targets
