@@ -1,3 +1,7 @@
+# rStrap
+
+---
+[![Build Status](https://travis-ci.com/mbardwell/rstrap.svg?branch=feature%2Ftravis-ci)](https://travis-ci.com/mbardwell/rstrap)
 
 ### What is this repository for? ###
 
