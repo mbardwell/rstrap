@@ -1,4 +1,5 @@
 #include "stdint.h"
+#include <nrfx.h>
 #include "tension.h"
 #include "ble_nus.h"
 #include "nrf_log.h"
@@ -11,15 +12,29 @@
 static volatile struct hx711_sample m_sample;
 static enum hx711_mode m_mode;
 static struct hx711_setup setup = {23, 24, 25, 32, 16, 24};
-static bool m_continous_sampling = false;
+
+/**
+ * @brief Function for converting HX711 sample
+ */
+static uint32_t Hx711Convert(uint32_t sample)
+{
+    uint32_t converted = (sample << 8) >> 8;
+    if (converted > 0xFFFFFF)
+    {
+        NRF_LOG_INFO("ERROR: converted value greater than possible for 24-bit sample");
+        // TODO: Deal with this
+    }
+
+    return converted;
+}
 
 void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     nrf_drv_gpiote_in_event_disable(setup.DOUT);
-    SampleHx711(false);
+    Hx711Sample();
 }
 
-void InitHx711(enum hx711_mode mode)
+void Hx711Init(enum hx711_mode mode)
 {
     ret_code_t ret_code;
 
@@ -62,10 +77,8 @@ void InitHx711(enum hx711_mode mode)
     NRF_PPI->CHEN = 7;
 }
 
-void StartHx711(bool single)
+void Hx711Start()
 {
-    m_continous_sampling = !single;
-
     NRF_LOG_DEBUG("Start sampling");
     
     NRF_GPIOTE->TASKS_CLR[1] = 1;
@@ -73,18 +86,21 @@ void StartHx711(bool single)
     nrf_drv_gpiote_in_event_enable(setup.DOUT, true);
 }
 
-void StopHx711()
+void Hx711Stop()
 {
     NRF_LOG_DEBUG("Stop sampling");
     nrf_drv_gpiote_in_event_disable(setup.DOUT);
 }
 
 /* Clocks out HX711 result - if readout fails consistently, try to increase the clock period and/or enable compiler optimization */
-void SampleHx711()
+void Hx711Sample()
 {
+    uint32_t converted_sample;
+
     NRF_TIMER2->TASKS_CLEAR = 1;
     m_sample.count = 0;
     m_sample.value = 0;
+    m_sample.status = Busy;
     NRF_TIMER1->TASKS_START = 1; // Starts clock signal on PD_SCK
 
     for (uint32_t i=0; i < setup.ADC_RES; i++)
@@ -93,19 +109,54 @@ void SampleHx711()
         {
             /* NRF_TIMER->CC[1] contains number of clock cycles.*/
             NRF_TIMER2->TASKS_CAPTURE[1] = 1;
-            if (NRF_TIMER2->CC[1] >= setup.ADC_RES) goto EXIT; // Readout not in sync with PD_CLK. Abort and notify error.
+            if (NRF_TIMER2->CC[1] >= setup.ADC_RES)
+            {
+                goto EXIT; // Readout not in sync with PD_CLK. Abort and notify error.
+            }
         }
         while(NRF_TIMER1->EVENTS_COMPARE[0] == 0);
         NRF_TIMER1->EVENTS_COMPARE[0] = 0;
         m_sample.value |= (nrf_gpio_pin_read(setup.DOUT) << (23 - i));
         m_sample.count++;
+        m_sample.status = Unread;
     }
     EXIT:
 
-    NRF_LOG_INFO("Number of bits: %d. ADC val: 0x%x out of 0xFFFFFF", 
+    converted_sample = Hx711Convert(m_sample.value);
+    
+    if (converted_sample > 0x7FFFFF)
+    {
+        NRF_LOG_DEBUG("Sample returned a negative value. Check connections");
+    }
+    NRF_LOG_INFO("Number of bits: %d. ADC val: 0x%x or 0d%d", 
     m_sample.count,
-    m_sample.value,
-    16777216);
+    converted_sample,
+    converted_sample);
+}
+
+nrfx_err_t Hx711SampleConvert(uint32_t *p_value)
+{
+    nrfx_err_t err_code = NRFX_ERROR_INVALID_STATE;
+
+    if (p_value == NULL)
+    {
+        NRF_LOG_INFO("Hx711SampleConvert does not accept null pointers");
+        err_code = NRFX_ERROR_NULL;
+    }
+    else
+    {        
+        if (m_sample.status == Unread)
+        {
+            uint32_t converted_sample = Hx711Convert(m_sample.value);
+            *p_value = converted_sample;
+            m_sample.status = Read;
+            NRF_LOG_INFO("p_value %d", *p_value);
+            err_code = NRFX_SUCCESS;
+        }
+        Hx711Start();
+    }
+    
+    return err_code;
 }
 
 /******** HX711 class end *********/

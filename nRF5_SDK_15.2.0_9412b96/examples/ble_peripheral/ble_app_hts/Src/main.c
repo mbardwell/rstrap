@@ -244,7 +244,19 @@ static void TensionLevelUpdate(void)
     }
     else
     {
-        StartHx711(true);
+        if (Hx711SampleConvert(&tension_level) == NRFX_SUCCESS)
+        {
+            len = uint32_encode(tension_level, tension);
+            NRF_LOG_INFO("Sending tension measurement: %d of length: %d", *tension, len);
+            NRF_LOG_DEBUG("Verbose: %x, %x, %x, %x", tension[0], tension[1], tension[2], tension[3]);
+
+            static uint16_t send_len = 3; // Since hx711 samples with 24 bits, this is all we should send
+            err_code = ble_nus_data_send(&m_nus, tension, &send_len, m_conn_handle);
+            if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
+            {
+                APP_ERROR_CHECK(err_code);
+            }
+        }
     }
 }
 
@@ -1059,7 +1071,7 @@ int main(void)
     conn_params_init();
     peer_manager_init();
     BatteryADCInit();
-    InitHx711(INPUT_CH_A_128);
+    Hx711Init(INPUT_CH_A_128);
 
     if (debugEnabled)
     {
