@@ -83,6 +83,7 @@
 #include "tension.h"
 #include "temperature.h"
 #include "nrf_drv_saadc.h"
+#include "stdlib.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -226,9 +227,11 @@ static void pm_evt_handler(pm_evt_t const *p_evt)
 static void TensionLevelUpdate(void)
 {
     ret_code_t err_code;
-    uint32_t tension_level = 0;
-    uint8_t tension[4];
-    uint16_t len = 0;
+    uint32_t tension_level;
+    // largest value to be sent is 2^23 = 8388608, which is 7 bytes. Add one for EOL character
+    static uint32_t max_n_digits = 8;
+    uint8_t tension[max_n_digits];
+    uint16_t len;
 
     if (simEnabled)
     {
@@ -246,12 +249,11 @@ static void TensionLevelUpdate(void)
     {
         if (Hx711SampleConvert(&tension_level) == NRFX_SUCCESS)
         {
-            len = uint32_encode(tension_level, tension);
-            NRF_LOG_INFO("Sending tension measurement: %d of length: %d", *tension, len);
-            NRF_LOG_DEBUG("Verbose: %x, %x, %x, %x", tension[0], tension[1], tension[2], tension[3]);
+            len = (uint16_t) max_n_digits;
+            itoa(tension_level, tension, 10);
+            NRF_LOG_INFO("Sending tension measurement: %d of length: %s", tension_level, tension);
 
-            static uint16_t send_len = 3; // Since hx711 samples with 24 bits, this is all we should send
-            err_code = ble_nus_data_send(&m_nus, tension, &send_len, m_conn_handle);
+            err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
             if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
             {
                 APP_ERROR_CHECK(err_code);
