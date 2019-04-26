@@ -20,14 +20,21 @@ enum hx711_evt
     DATA_ERROR
 };
 
+enum hx711_vdd_connection
+{
+    BT832_VDD,
+    BT832_GPIO
+};
+
 struct hx711_setup // this should be variables in class
 {
-    uint32_t PD_SCK;
-    uint32_t DOUT;
-    uint32_t VDD;
-    uint32_t TIMER_COUNTERTOP;
-    uint32_t TIMER_COMPARE;
-    uint32_t ADC_RES;
+    uint32_t pd_sck_pin;
+    uint32_t dout_pin;
+    enum hx711_vdd_connection vdd_conn; // declares if vdd is connected to mains or gpio
+    uint32_t vdd_pin;
+    uint32_t timer_countertop;
+    uint32_t timer_compare;
+    uint32_t adc_res;
 };
 
 enum hx711_sample_status

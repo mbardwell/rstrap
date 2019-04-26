@@ -251,7 +251,7 @@ static void TensionLevelUpdate(void)
         {
             len = (uint16_t) max_n_digits;
             itoa(tension_level, tension, 10);
-            NRF_LOG_INFO("Sending tension measurement: %d of length: %s", tension_level, tension);
+            NRF_LOG_INFO("Sending tension measurement: %d of length: %d", tension_level, len);
 
             err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
             if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
