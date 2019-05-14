@@ -11,8 +11,6 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 ######################################
 # building variables
 ######################################
-# debug build?
-DEBUG ?= 0
 # simulation build?
 SIMULATE ?= 0
 # optimization
@@ -243,12 +241,6 @@ INC_FOLDERS += \
 
 # Libraries common to all targets
 LIB_FILES += \
-
-# Debug option
-ifeq ($(DEBUG), 1)
-	C_DEFS += -DDEBUG
-	OPT = -Og
-endif
 
 ifeq ($(SIMULATE), 1)
 	C_DEFS += -DSIMULATE

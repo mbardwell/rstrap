@@ -117,19 +117,32 @@ define quote
 endef
 
 # Toolchain commands
-CC      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-gcc)
-CXX     := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-c++)
-AS      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-as)
-AR      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-ar) -r
-LD      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-ld)
-NM      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-nm)
-OBJDUMP := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-objdump)
-OBJCOPY := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-objcopy)
-SIZE    := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-size)
-$(if $(shell $(CC) --version),,$(info Cannot find: $(CC).) \
-  $(info Please set values in: "$(abspath $(TOOLCHAIN_CONFIG_FILE))") \
-  $(info according to the actual configuration of your system.) \
-  $(error Cannot continue))
+TRAVIS_CI ?= 0
+ifeq ($(TRAVIS_CI), 0)
+    CC      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-gcc)
+    CXX     := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-c++)
+    AS      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-as)
+    AR      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-ar) -r
+    LD      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-ld)
+    NM      := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-nm)
+    OBJDUMP := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-objdump)
+    OBJCOPY := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-objcopy)
+    SIZE    := $(call quote,$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-size)
+    $(if $(shell $(CC) --version),,$(info Cannot find: $(CC).) \
+    $(info Please set values in: "$(abspath $(TOOLCHAIN_CONFIG_FILE))") \
+    $(info according to the actual configuration of your system.) \
+    $(error Cannot continue))
+else
+    CC      := $(call quote,$(GNU_PREFIX)-gcc)
+    CXX     := $(call quote,$(GNU_PREFIX)-c++)
+    AS      := $(call quote,$(GNU_PREFIX)-as)
+    AR      := $(call quote,$(GNU_PREFIX)-ar) -r
+    LD      := $(call quote,$(GNU_PREFIX)-ld)
+    NM      := $(call quote,$(GNU_PREFIX)-nm)
+    OBJDUMP := $(call quote,$(GNU_PREFIX)-objdump)
+    OBJCOPY := $(call quote,$(GNU_PREFIX)-objcopy)
+    SIZE    := $(call quote,$(GNU_PREFIX)-size)
+endif
 
 # Use ccache on linux if available
 CCACHE := $(if $(filter Windows%,$(OS)),, \

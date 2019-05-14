@@ -1,5 +1,5 @@
-language: cpp
+language: c
 
 compiler: gcc
 
-script: make -j8 -C ./nRF5_SDK_15.2.0_9412b96/examples/ble_peripheral/ble_app_hts/pca10040/s132/armgcc/
+script: make -j8 TRAVIS_CI=1 -C ./nRF5_SDK_15.2.0_9412b96/examples/ble_peripheral/ble_app_hts/pca10040/s132/armgcc/
