@@ -62,6 +62,7 @@
 #include "peer_manager_handler.h"
 #include "ble_hrs_c.h"
 #include "ble_bas_c.h"
+#include "ble_nus_c.h"
 #include "app_util.h"
 #include "app_timer.h"
 #include "bsp_btn_ble.h"
@@ -96,6 +97,9 @@
 
 #define TARGET_UUID                 BLE_UUID_HEART_RATE_SERVICE         /**< Target device uuid that application is looking for. */
 
+#define UART_TX_BUF_SIZE        256                                     /**< UART TX buffer size. */
+#define UART_RX_BUF_SIZE        256                                     /**< UART RX buffer size. */
+
 /**@brief Macro to unpack 16bit unsigned UUID from octet stream. */
 #define UUID16_EXTRACT(DST, SRC) \
     do                           \
@@ -105,7 +109,7 @@
         (*(DST))  |= (SRC)[0];   \
     } while (0)
 
-
+BLE_NUS_C_DEF(m_ble_nus_c);  
 BLE_HRS_C_DEF(m_hrs_c);                                             /**< Structure used to identify the heart rate client module. */
 BLE_BAS_C_DEF(m_bas_c);                                             /**< Structure used to identify the Battery Service client module. */
 NRF_BLE_GATT_DEF(m_gatt);                                           /**< GATT module instance. */
@@ -119,7 +123,7 @@ static bool     m_memory_access_in_progress;                        /**< Flag to
 /**< Scan parameters requested for scanning and connection. */
 static ble_gap_scan_params_t const m_scan_param =
 {
-    .active        = 0x01,
+    .active        = 0x02,
     .interval      = NRF_BLE_SCAN_SCAN_INTERVAL,
     .window        = NRF_BLE_SCAN_SCAN_WINDOW,
     .filter_policy = BLE_GAP_SCAN_FP_WHITELIST,
@@ -177,8 +181,77 @@ static void db_disc_handler(ble_db_discovery_evt_t * p_evt)
 {
     ble_hrs_on_db_disc_evt(&m_hrs_c, p_evt);
     ble_bas_on_db_disc_evt(&m_bas_c, p_evt);
+    ble_nus_c_on_db_disc_evt(&m_ble_nus_c, p_evt);
 }
 
+/**@brief Function for handling characters received by the Nordic UART Service (NUS).
+ *
+ * @details This function takes a list of characters of length data_len and prints the characters out on UART.
+ *          If @ref ECHOBACK_BLE_UART_DATA is set, the data is sent back to sender.
+ */
+static void ble_nus_chars_received_uart_print(uint8_t * p_data, uint16_t data_len)
+{
+    // ret_code_t ret_val;
+
+    NRF_LOG_DEBUG("Receiving data.");
+    NRF_LOG_HEXDUMP_DEBUG(p_data, data_len);
+
+    // for (uint32_t i = 0; i < data_len; i++)
+    // {
+        
+    //     do
+    //     {
+    //         ret_val = app_uart_put(p_data[i]);
+    //         if ((ret_val != NRF_SUCCESS) && (ret_val != NRF_ERROR_BUSY))
+    //         {
+    //             NRF_LOG_ERROR("app_uart_put failed for index 0x%04x.", i);
+    //             APP_ERROR_CHECK(ret_val);
+    //         }
+    //     } while (ret_val == NRF_ERROR_BUSY);
+    // }
+    // if (p_data[data_len-1] == '\r')
+    // {
+    //     while (app_uart_put('\n') == NRF_ERROR_BUSY);
+    // }
+}
+
+/**@brief Callback handling Nordic UART Service (NUS) client events.
+ *
+ * @details This function is called to notify the application of NUS client events.
+ *
+ * @param[in]   p_ble_nus_c   NUS client handle. This identifies the NUS client.
+ * @param[in]   p_ble_nus_evt Pointer to the NUS client event.
+ */
+
+/**@snippet [Handling events from the ble_nus_c module] */
+static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, ble_nus_c_evt_t const * p_ble_nus_evt)
+{
+    ret_code_t err_code;
+    NRF_LOG_INFO("ble nus event");
+
+    switch (p_ble_nus_evt->evt_type)
+    {
+        case BLE_NUS_C_EVT_DISCOVERY_COMPLETE:
+            NRF_LOG_INFO("Discovery complete.");
+            err_code = ble_nus_c_handles_assign(p_ble_nus_c, p_ble_nus_evt->conn_handle, &p_ble_nus_evt->handles);
+            APP_ERROR_CHECK(err_code);
+
+            err_code = ble_nus_c_tx_notif_enable(p_ble_nus_c);
+            APP_ERROR_CHECK(err_code);
+            NRF_LOG_INFO("Connected to device with Nordic UART Service.");
+            break;
+
+        case BLE_NUS_C_EVT_NUS_TX_EVT:
+            ble_nus_chars_received_uart_print(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
+            break;
+
+        case BLE_NUS_C_EVT_DISCONNECTED:
+            NRF_LOG_INFO("Disconnected.");
+            scan_start();
+            break;
+    }
+}
+/**@snippet [Handling events from the ble_nus_c module] */
 
 /**@brief Function for handling Peer Manager events.
  *
@@ -611,6 +684,17 @@ static void bas_c_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+/**@brief Function for initializing the Nordic UART Service (NUS) client. */
+static void nus_c_init(void)
+{
+    ret_code_t       err_code;
+    ble_nus_c_init_t init;
+
+    init.evt_handler = ble_nus_c_evt_handler;
+
+    err_code = ble_nus_c_init(&m_ble_nus_c, &init);
+    APP_ERROR_CHECK(err_code);
+}
 
 /**
  * @brief Database discovery collector initialization.
@@ -936,6 +1020,10 @@ int main(void)
 
     // Initialize.
     log_init();
+    if (NRF_LOG_DEFAULT_LEVEL == 4)
+    {
+        NRF_LOG_INFO("!!! This is a debug build !!!");
+    }
     timer_init();
     power_management_init();
     buttons_leds_init(&erase_bonds);
@@ -945,6 +1033,7 @@ int main(void)
     db_discovery_init();
     hrs_c_init();
     bas_c_init();
+    // nus_c_init();
     scan_init();
 
     // Start execution.
@@ -957,5 +1046,3 @@ int main(void)
         idle_state_handle();
     }
 }
-
-
