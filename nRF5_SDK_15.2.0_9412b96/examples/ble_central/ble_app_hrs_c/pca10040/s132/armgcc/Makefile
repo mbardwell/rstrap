@@ -8,8 +8,14 @@ PROJ_DIR := ../../..
 $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
   LINKER_SCRIPT  := ble_app_hrs_c_gcc_nrf52.ld
 
+######################################
+# building variables
+######################################
+DEBUG ?= 0
+
 # Source files common to all targets
 SRC_FILES += \
+  $(SDK_ROOT)/components/ble/ble_services/ble_nus_c/ble_nus_c.c \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp_btn_ble.c \
@@ -237,7 +243,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/crypto/backend/mbedtls \
   $(SDK_ROOT)/components/libraries/crypto/backend/cc310 \
   $(SDK_ROOT)/external/nrf_oberon \
-  $(SDK_ROOT)/external/micro-ecc/micro-ecc \
+  $(SDK_ROOT)/external/micro-ecc \
   $(SDK_ROOT)/components/ble/ble_services/ble_dis \
   $(SDK_ROOT)/components/nfc/ndef/uri \
   $(SDK_ROOT)/components/ble/nrf_ble_gatt \
@@ -272,10 +278,16 @@ LIB_FILES += \
   $(SDK_ROOT)/external/nrf_cc310/lib/libnrf_cc310_0.9.10.a \
   $(SDK_ROOT)/external/nrf_oberon/lib/nrf52/liboberon_2.0.5.a \
 
-# Optimization flags
-OPT = -O3 -g3
-# Uncomment the line below to enable link time optimization
-#OPT += -flto
+# Debug option
+ifeq ($(DEBUG), 1)
+	C_DEFS += -DNRF_LOG_DEFAULT_LEVEL=4
+	OPT = -Og
+else
+	OPT = -O3 -g3
+	CFLAGS += -Werror
+	# Uncomment the line below to enable link time optimization
+	#OPT += -flto
+endif
 
 # C flags common to all targets
 CFLAGS += $(OPT)
@@ -299,11 +311,12 @@ CFLAGS += -DuECC_SUPPORT_COMPRESSED_POINT=0
 CFLAGS += -DuECC_VLI_NATIVE_LITTLE_ENDIAN=1
 CFLAGS += -mcpu=cortex-m4
 CFLAGS += -mthumb -mabi=aapcs
-CFLAGS += -Wall -Werror
+CFLAGS += -Wall
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in a separate section, this allows linker to discard unused ones
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
+CFLAGS += $(C_DEFS)
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
@@ -372,6 +385,10 @@ include $(TEMPLATE_PATH)/Makefile.common
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 .PHONY: flash flash_softdevice erase
+
+# Clean
+clean:
+	del /s /q _build
 
 # Flash the program
 flash: default
