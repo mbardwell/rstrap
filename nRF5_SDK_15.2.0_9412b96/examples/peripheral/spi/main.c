@@ -37,6 +37,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include "bma2x2.h"
 #include "nrf_drv_spi.h"
 #include "app_util_platform.h"
 #include "nrf_delay.h"
