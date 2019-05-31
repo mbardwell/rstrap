@@ -39,7 +39,6 @@
  */
 #include "nrf_drv_spi.h"
 #include "app_util_platform.h"
-#include "nrf_gpio.h"
 #include "nrf_delay.h"
 #include "boards.h"
 #include "app_error.h"
@@ -75,8 +74,6 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
 
 int main(void)
 {
-    bsp_board_init(BSP_INIT_LEDS);
-
     APP_ERROR_CHECK(NRF_LOG_INIT(NULL));
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 
@@ -105,7 +102,6 @@ int main(void)
 
         NRF_LOG_FLUSH();
 
-        bsp_board_led_invert(BSP_BOARD_LED_0);
         nrf_delay_ms(200);
     }
 }
