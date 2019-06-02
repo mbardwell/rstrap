@@ -452,6 +452,7 @@ burst_read(device_addr, register_addr, register_data, rd_len)
 /**************************************************************/
 /**\name	CONSTANTS DEFINITION    */
 /**************************************************************/
+#define         NO_ERROR                                ((u8)0)
 #define         BMA2x2_INIT_VALUE                       ((u8)0)
 #define         BMA2x2_GEN_READ_WRITE_LENGTH            ((u8)1)
 #define		BMA2x2_INTERFACE_IDLE_TIME_DELAY	((u8)1)
