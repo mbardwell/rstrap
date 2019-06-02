@@ -54,8 +54,12 @@ static volatile bool spi_xfer_done;  /**< Flag used to indicate that SPI instanc
 
 #define TEST_BYTE "NORDIC"
 static uint8_t       m_tx_buf[] = {TEST_BYTE};           /**< TX buffer. */
-static uint8_t       m_rx_buf[sizeof(TEST_BYTE)];    /**< RX buffer. */
+static uint8_t       m_rx_buf[sizeof(TEST_BYTE)];        /**< RX buffer. */
 static const uint8_t m_length = sizeof(m_tx_buf);        /**< Transfer length. */
+
+#define BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE	0x7F
+#define BMA2x2_SPI_BUS_READ_CONTROL_BYTE	0x80
+#define SPI_BUFFER_LEN                      5
 
 /**
  * @brief SPI user event handler.
@@ -73,6 +77,66 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
     }
 }
 
+s32 init_bma(struct bma2x2_t bma2x2)
+{
+    s32 com_rslt = ERROR;
+    u8 bw_value_u8 = BMA2x2_INIT_VALUE;
+    
+    com_rslt = bma2x2_init(&bma2x2);
+    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_NORMAL);
+    bw_value_u8 = 0x08;/* set bandwidth of 7.81Hz*/
+	com_rslt += bma2x2_set_bw(bw_value_u8);
+
+    u8 banwid = BMA2x2_INIT_VALUE;
+	/* This API used to read back the written value of bandwidth*/
+	com_rslt += bma2x2_get_bw(&banwid);
+
+    return com_rslt;
+}
+
+s8 bma_spi_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+{
+    s8 error = NO_ERROR;
+    uint8_t tx_buf[2*SPI_BUFFER_LEN];
+
+    for (uint8_t string_pos = 0; string_pos < cnt; string_pos++)
+    {   
+        // place write bit + address in first byte
+        tx_buf[2*string_pos] = (reg_addr++) & BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE;
+        // place data in second byte (hence the + 1)        
+        tx_buf[2*string_pos + 1] = *(reg_data + string_pos);
+    }
+
+    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, NULL, 0);
+    NRF_LOG_INFO("spi write error: %d", (int8_t) error);
+
+    return error;
+}
+
+s8 bma_spi_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+{
+    s8 error = NO_ERROR;
+    uint8_t tx_buf[SPI_BUFFER_LEN];
+    uint8_t rx_buf[SPI_BUFFER_LEN];
+
+    tx_buf[BMA2x2_INIT_VALUE] = reg_addr|BMA2x2_SPI_BUS_READ_CONTROL_BYTE;
+
+    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, rx_buf, (uint8_t) cnt);
+    NRF_LOG_INFO("spi read error: %d", (int8_t) error);
+
+    for (uint8_t string_pos = 0; string_pos < cnt; string_pos++)
+    {   
+        *(reg_data + string_pos) = rx_buf[string_pos];
+    }
+
+    return error;
+}
+
+void spi_delay(u32 millis_time)
+{
+    nrf_delay_ms(millis_time);
+}
+
 int main(void)
 {
     APP_ERROR_CHECK(NRF_LOG_INIT(NULL));
@@ -86,7 +150,16 @@ int main(void)
     spi_config.mode = NRF_DRV_SPI_MODE_2;
     APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, spi_event_handler, NULL));
 
-    NRF_LOG_INFO("SPI example started.");
+    NRF_LOG_INFO("SPI hardware initialised.");
+
+    struct bma2x2_t bma2x2;
+    bma2x2.bus_write = &bma_spi_write;
+    bma2x2.bus_read = &bma_spi_read;
+    bma2x2.dev_addr = 102; // Random value. No chip select mechanism in place
+    bma2x2.delay_msec = &spi_delay;
+    init_bma(bma2x2);
+
+    NRF_LOG_INFO("BMA API initialised.");
 
     while (1)
     {
