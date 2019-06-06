@@ -80,16 +80,8 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
 s32 init_bma(struct bma2x2_t bma2x2)
 {
     s32 com_rslt = ERROR;
-    u8 bw_value_u8 = BMA2x2_INIT_VALUE;
     
     com_rslt = bma2x2_init(&bma2x2);
-    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_NORMAL);
-    bw_value_u8 = 0x08;/* set bandwidth of 7.81Hz*/
-	com_rslt += bma2x2_set_bw(bw_value_u8);
-
-    u8 banwid = BMA2x2_INIT_VALUE;
-	/* This API used to read back the written value of bandwidth*/
-	com_rslt += bma2x2_get_bw(&banwid);
 
     return com_rslt;
 }
