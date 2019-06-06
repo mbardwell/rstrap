@@ -61,6 +61,9 @@ static const uint8_t m_length = sizeof(m_tx_buf);        /**< Transfer length. *
 #define BMA2x2_SPI_BUS_READ_CONTROL_BYTE	0x80
 #define SPI_BUFFER_LEN                      5
 
+#define BMA_ERROR_CHECK(ERR_CODE) { NRF_LOG_INFO("BMA Error: %d", (int8_t) ERR_CODE); }
+
+
 /**
  * @brief SPI user event handler.
  * @param event     
@@ -98,6 +101,7 @@ s8 bma_spi_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
     s8 error = NO_ERROR;
     uint8_t tx_buf[2*SPI_BUFFER_LEN];
+    uint8_t rx_buf[SPI_BUFFER_LEN];
 
     for (uint8_t string_pos = 0; string_pos < cnt; string_pos++)
     {   
@@ -107,7 +111,7 @@ s8 bma_spi_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
         tx_buf[2*string_pos + 1] = *(reg_data + string_pos);
     }
 
-    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, NULL, 0);
+    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, rx_buf, (uint8_t) cnt);
     NRF_LOG_INFO("spi write error: %d", (int8_t) error);
 
     return error;
@@ -122,7 +126,7 @@ s8 bma_spi_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
     tx_buf[BMA2x2_INIT_VALUE] = reg_addr|BMA2x2_SPI_BUS_READ_CONTROL_BYTE;
 
     error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, rx_buf, (uint8_t) cnt);
-    NRF_LOG_INFO("spi read error: %d", (int8_t) error);
+    BMA_ERROR_CHECK((int8_t) error);
 
     for (uint8_t string_pos = 0; string_pos < cnt; string_pos++)
     {   
@@ -157,7 +161,7 @@ int main(void)
     bma2x2.bus_read = &bma_spi_read;
     bma2x2.dev_addr = 102; // Random value. No chip select mechanism in place
     bma2x2.delay_msec = &spi_delay;
-    init_bma(bma2x2);
+    BMA_ERROR_CHECK(init_bma(bma2x2));
 
     NRF_LOG_INFO("BMA API initialised.");
 
