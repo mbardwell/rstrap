@@ -52,14 +52,11 @@
 static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);  /**< SPI instance. */
 static volatile bool spi_xfer_done;  /**< Flag used to indicate that SPI instance completed the transfer. */
 
-#define TEST_BYTE "NORDIC"
-static uint8_t       m_tx_buf[] = {TEST_BYTE};           /**< TX buffer. */
-static uint8_t       m_rx_buf[sizeof(TEST_BYTE)];        /**< RX buffer. */
-static const uint8_t m_length = sizeof(m_tx_buf);        /**< Transfer length. */
 
 #define BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE	0x7F
 #define BMA2x2_SPI_BUS_READ_CONTROL_BYTE	0x80
 #define SPI_BUFFER_LEN                      5
+static uint8_t       m_rx_buf[SPI_BUFFER_LEN];        /**< RX buffer. */
 
 #define BMA_ERROR_CHECK(ERR_CODE) { NRF_LOG_INFO("BMA Error: %d", (int8_t) ERR_CODE); }
 
@@ -112,7 +109,7 @@ s8 bma_spi_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
     }
 
     error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, rx_buf, (uint8_t) cnt);
-    NRF_LOG_INFO("spi write error: %d", (int8_t) error);
+    BMA_ERROR_CHECK((int8_t) error);
 
     return error;
 }
@@ -156,6 +153,7 @@ int main(void)
 
     NRF_LOG_INFO("SPI hardware initialised.");
 
+    spi_xfer_done = false;
     struct bma2x2_t bma2x2;
     bma2x2.bus_write = &bma_spi_write;
     bma2x2.bus_read = &bma_spi_read;
@@ -167,16 +165,12 @@ int main(void)
 
     while (1)
     {
-        // Reset rx buffer and transfer done flag
-        memset(m_rx_buf, 0, m_length);
-        spi_xfer_done = false;
-
-        APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi, m_tx_buf, m_length, m_rx_buf, m_length));
-
         while (!spi_xfer_done)
         {
             __WFE();
         }
+
+        spi_xfer_done = false;
 
         NRF_LOG_FLUSH();
 
