@@ -15,6 +15,8 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 DEBUG ?= 0
 # simulation build?
 SIMULATE ?= 0
+# devkit build?
+DEVKIT ?= 0
 # optimization
 OPT = -O3
 # Uncomment the line below to enable link time optimization
@@ -254,6 +256,10 @@ ifeq ($(SIMULATE), 1)
 	C_DEFS += -DSIMULATE
 endif
 
+ifeq ($(DEVKIT), 1)
+  C_DEFS += -DDEVKIT
+endif
+
 # C flags common to all targets
 CFLAGS += $(OPT)
 CFLAGS += -DBOARD_PCA10040
@@ -337,9 +343,15 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 .PHONY: flash flash_softdevice erase
 
+UNAME := $(shell uname)
+
 # Clean
 clean:
-	del /s /q _build
+  ifeq ($(UNAME), Linux)
+	  sudo rm -rf _build
+  else
+    del /s /q _build
+  endif
 
 # Flash the program
 flash: default
