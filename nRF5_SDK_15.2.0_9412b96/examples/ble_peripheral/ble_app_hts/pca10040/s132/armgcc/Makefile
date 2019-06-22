@@ -13,6 +13,7 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 ######################################
 # debug build?
 DEBUG ?= 0
+DEBUG_PIN ?= 0
 # simulation build?
 SIMULATE ?= 0
 # devkit build?
@@ -249,6 +250,11 @@ LIB_FILES += \
 # Debug option
 ifeq ($(DEBUG), 1)
 	C_DEFS += -DDEBUG
+  C_DEFS += -DNRF_LOG_ENABLED=1
+  C_DEFS += -DNRF_LOG_BACKEND_UART_ENABLED=1
+  ifneq ($(DEBUG_PIN), 0)
+    C_DEFS += -DNRF_LOG_BACKEND_UART_TX_PIN=$(DEBUG_PIN)
+  endif
 	OPT = -Og
 endif
 
