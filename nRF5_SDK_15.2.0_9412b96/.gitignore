@@ -49,3 +49,6 @@ dkms.conf
 *.jlink
 *.emSession
 examples/*/*/*/*/ses/Output
+*.txt
+*.ld
+*.icf
