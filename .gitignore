@@ -1,7 +1,58 @@
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# Custom
+*.jlink
+*.emSession
+examples/*/*/*/*/ses/Output
+!nRF5_SDK_15.2.0_9412b96/examples/ble_peripheral/ble_app_hts/hex/rstrap-working*.hex
 rstrap.code-workspace
 *.ipch
 *.bin
 *.vsix
 *.json
 *.in
-nRF5_SDK_15.2.0_9412b96/examples/ble_peripheral/ble_app_hts/pca10040/s132/armgcc/_build/nrf52832_xxaa.bin
