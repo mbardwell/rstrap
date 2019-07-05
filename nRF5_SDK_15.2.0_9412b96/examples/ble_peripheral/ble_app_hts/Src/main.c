@@ -61,7 +61,7 @@
 #include "ble_advdata.h"
 #include "ble_advertising.h"
 #include "ble_bas.h"
-#include "ble_hts.h"
+#include "ble_hts_custom.h"
 #include "ble_dis.h"
 #include "ble_conn_params.h"
 #include "sensorsim.h"

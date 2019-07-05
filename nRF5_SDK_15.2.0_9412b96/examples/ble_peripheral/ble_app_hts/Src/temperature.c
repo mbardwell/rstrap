@@ -1,5 +1,4 @@
 #include "temperature.h"
-#include "ble_hts.h" // For ble_hts_meas_t
 #include "nrf_soc.h"
 #include "app_error.h"
 
