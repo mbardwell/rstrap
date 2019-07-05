@@ -91,7 +91,7 @@ void Hx711Init(enum hx711_mode mode)
     NRF_PPI->FORK[1].TEP = (uint32_t) &NRF_TIMER2->TASKS_COUNT; // Increment on falling edge
     NRF_PPI->CH[2].EEP   = (uint32_t) &NRF_TIMER2->EVENTS_COMPARE[0];
     NRF_PPI->CH[2].TEP   = (uint32_t) &NRF_TIMER1->TASKS_SHUTDOWN;
-    NRF_PPI->CHEN = 7;
+    NRF_PPI->CHEN = NRF_PPI->CHEN | 7;
 }
 
 void Hx711Start()
