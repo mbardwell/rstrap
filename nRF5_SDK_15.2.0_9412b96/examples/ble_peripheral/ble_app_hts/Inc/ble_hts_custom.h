@@ -87,6 +87,12 @@ NRF_SDH_BLE_OBSERVER(_name ## _obs,                                             
                      BLE_HTS_BLE_OBSERVER_PRIO,                                                     \
                      ble_hts_on_ble_evt, &_name)
 
+#define BLE_HTS_DEF_CUSTOM(_name)                                                                   \
+static ble_hts_t _name;                                                                             \
+NRF_SDH_BLE_OBSERVER(_name ## _obs,                                                                 \
+                     BLE_HTS_BLE_OBSERVER_PRIO,                                                     \
+                     ble_hts_on_ble_evt_custom, &_name)
+
 // Temperature Type measurement locations
 #define BLE_HTS_TEMP_TYPE_ARMPIT        1
 #define BLE_HTS_TEMP_TYPE_BODY          2
@@ -185,6 +191,8 @@ uint32_t ble_hts_init(ble_hts_t * p_hts, const ble_hts_init_t * p_hts_init);
  */
 void ble_hts_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
 
+/* custom */
+void ble_hts_on_ble_evt_custom(ble_evt_t const * p_ble_evt, void * p_context);
 
 /**@brief Function for sending health thermometer measurement if indication has been enabled.
  *
@@ -198,6 +206,9 @@ void ble_hts_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
  * @return      NRF_SUCCESS on success, otherwise an error code.
  */
 uint32_t ble_hts_measurement_send(ble_hts_t * p_hts, ble_hts_meas_t * p_hts_meas);
+
+/* custom */
+uint32_t ble_hts_measurement_send_custom(ble_hts_t * p_hts, ble_hts_meas_t * p_hts_meas);
 
 
 /**@brief Function for checking if indication of Temperature Measurement is currently enabled.

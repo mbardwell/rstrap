@@ -110,6 +110,30 @@ static void on_cccd_write(ble_hts_t * p_hts, ble_gatts_evt_write_t const * p_evt
     }
 }
 
+/* custom */
+static void on_cccd_write_custom(ble_hts_t * p_hts, ble_gatts_evt_write_t const * p_evt_write)
+{
+    if (p_evt_write->len == 2)
+    {
+        // CCCD written, update indication state
+        if (p_hts->evt_handler != NULL)
+        {
+            ble_hts_evt_t evt;
+
+            if (ble_srv_is_notification_enabled(p_evt_write->data))
+            {
+                evt.evt_type = BLE_HTS_EVT_INDICATION_ENABLED;
+            }
+            else
+            {
+                evt.evt_type = BLE_HTS_EVT_INDICATION_DISABLED;
+            }
+
+            p_hts->evt_handler(p_hts, &evt);
+        }
+    }
+}
+
 
 /**@brief Function for handling the Write event.
  *
@@ -126,6 +150,16 @@ static void on_write(ble_hts_t * p_hts, ble_evt_t const * p_ble_evt)
     }
 }
 
+/* custom */
+static void on_write_custom(ble_hts_t * p_hts, ble_evt_t const * p_ble_evt)
+{
+    ble_gatts_evt_write_t const * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
+
+    if (p_evt_write->handle == p_hts->meas_handles.cccd_handle)
+    {
+        on_cccd_write_custom(p_hts, p_evt_write);
+    }
+}
 
 /**@brief Function for handling the HVC event.
  *
@@ -164,6 +198,34 @@ void ble_hts_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GATTS_EVT_WRITE:
             on_write(p_hts, p_ble_evt);
+            break;
+
+        case BLE_GATTS_EVT_HVC:
+            on_hvc(p_hts, p_ble_evt);
+            break;
+
+        default:
+            // No implementation needed.
+            break;
+    }
+}
+
+void ble_hts_on_ble_evt_custom(ble_evt_t const * p_ble_evt, void * p_context)
+{
+    ble_hts_t * p_hts = (ble_hts_t *)p_context;
+
+    switch (p_ble_evt->header.evt_id)
+    {
+        case BLE_GAP_EVT_CONNECTED:
+            on_connect(p_hts, p_ble_evt);
+            break;
+
+        case BLE_GAP_EVT_DISCONNECTED:
+            on_disconnect(p_hts, p_ble_evt);
+            break;
+
+        case BLE_GATTS_EVT_WRITE:
+            on_write_custom(p_hts, p_ble_evt);
             break;
 
         case BLE_GATTS_EVT_HVC:
@@ -270,7 +332,7 @@ uint32_t ble_hts_init(ble_hts_t * p_hts, ble_hts_init_t const * p_hts_init)
     add_char_params.max_len             = MAX_HTM_LEN;
     add_char_params.p_init_value        = init_value;
     add_char_params.is_var_len          = true;
-    add_char_params.char_props.indicate = 1;
+    add_char_params.char_props.notify = 1;
     add_char_params.cccd_write_access   = p_hts_init->ht_meas_cccd_wr_sec;
 
     err_code = characteristic_add(p_hts->service_handle, &add_char_params, &p_hts->meas_handles);
@@ -367,6 +429,43 @@ uint32_t ble_hts_is_indication_enabled(ble_hts_t * p_hts, bool * p_indication_en
         *p_indication_enabled = false;
         return NRF_SUCCESS;
     }
+    return err_code;
+}
+
+uint32_t ble_hts_measurement_send_custom(ble_hts_t * p_hts, ble_hts_meas_t * p_hts_meas)
+{
+    uint32_t err_code;
+
+    // Send value if connected
+    if (p_hts->conn_handle != BLE_CONN_HANDLE_INVALID)
+    {
+        uint8_t                encoded_hts_meas[MAX_HTM_LEN];
+        uint16_t               len;
+        uint16_t               hvx_len;
+        ble_gatts_hvx_params_t hvx_params;
+
+        len     = hts_measurement_encode(p_hts, p_hts_meas, encoded_hts_meas);
+        hvx_len = len;
+
+        memset(&hvx_params, 0, sizeof(hvx_params));
+
+        hvx_params.handle = p_hts->meas_handles.value_handle;
+        hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+        hvx_params.offset = 0;
+        hvx_params.p_len  = &hvx_len;
+        hvx_params.p_data = encoded_hts_meas;
+
+        err_code = sd_ble_gatts_hvx(p_hts->conn_handle, &hvx_params);
+        if ((err_code == NRF_SUCCESS) && (hvx_len != len))
+        {
+            err_code = NRF_ERROR_DATA_SIZE;
+        }
+    }
+    else
+    {
+        err_code = NRF_ERROR_INVALID_STATE;
+    }
+
     return err_code;
 }
 #endif // NRF_MODULE_ENABLED(BLE_HTS)
