@@ -61,7 +61,7 @@
 #include "ble_advdata.h"
 #include "ble_advertising.h"
 #include "ble_bas.h"
-#include "ble_hts.h"
+#include "ble_hts_custom.h"
 #include "ble_dis.h"
 #include "ble_conn_params.h"
 #include "sensorsim.h"
@@ -146,7 +146,7 @@ APP_TIMER_DEF(m_tension_timer_id);  // Tension timer
 BLE_NUS_DEF(m_nus, 1);              // Nordic UART Service structure
 APP_TIMER_DEF(m_battery_timer_id);  /**< Battery timer. */
 BLE_BAS_DEF(m_bas);                 /**< Structure used to identify the battery service. */
-BLE_HTS_DEF(m_hts);                 /**< Structure used to identify the health thermometer service. */
+BLE_HTS_DEF_CUSTOM(m_hts);                 /**< Structure used to identify the health thermometer service. */
 NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising); /**< Advertising module instance. */
@@ -446,8 +446,6 @@ static void temperature_measurement_send(void)
     ble_hts_meas_t temperature_meas;
     ret_code_t err_code;
 
-    if (!m_hts_meas_ind_conf_pending)
-    {
         if (simEnabled)
         {
             hts_sim_measurement(&temperature_meas);
@@ -460,7 +458,7 @@ static void temperature_measurement_send(void)
         /* For logging instead of including the entire math library I just assume .exponent = -2 (ie mantissa x 0.01)*/
         NRF_LOG_INFO("Sending temperature measurement: %d", temperature_meas.temp_in_celcius.mantissa * 0.01);
 
-        err_code = ble_hts_measurement_send(&m_hts, &temperature_meas);
+    err_code = ble_hts_measurement_send_custom(&m_hts, &temperature_meas);
 
         switch (err_code)
         {
@@ -478,7 +476,6 @@ static void temperature_measurement_send(void)
             break;
         }
     }
-}
 
 /**@brief Function for handling the Health Thermometer Service events.
  *
