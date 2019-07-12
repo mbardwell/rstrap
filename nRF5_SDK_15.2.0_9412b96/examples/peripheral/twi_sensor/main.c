@@ -53,7 +53,7 @@
 #include "app_error.h"
 #include "nrf_drv_twi.h"
 #include "nrf_delay.h"
-
+#include "bma2x2.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
