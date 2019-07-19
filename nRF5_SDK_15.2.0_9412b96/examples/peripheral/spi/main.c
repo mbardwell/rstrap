@@ -140,30 +140,37 @@ int main(void)
     spi_config.miso_pin = SPI_MISO_PIN; //28 -> 8
     spi_config.mosi_pin = SPI_MOSI_PIN; //4 -> 6
     spi_config.sck_pin  = SPI_SCK_PIN; //3 -> 15
-    spi_config.mode = NRF_DRV_SPI_MODE_2;
+    spi_config.mode = NRF_DRV_SPI_MODE_3;
+    spi_config.bit_order = NRF_SPI_BIT_ORDER_MSB_FIRST;
     APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, spi_event_handler, NULL));
 
     NRF_LOG_INFO("SPI hardware initialised.");
 
-    spi_xfer_done = false;
-    struct bma2x2_t bma2x2;
-    bma2x2.bus_write = &bma_spi_write;
-    bma2x2.bus_read = &bma_spi_read;
-    bma2x2.dev_addr = 102; // Random value. No chip select mechanism in place
-    bma2x2.delay_msec = &spi_delay;
-    BMA_ERROR_CHECK(init_bma(bma2x2));
+    // spi_xfer_done = false;
+    // struct bma2x2_t bma2x2;
+    // bma2x2.bus_write = &bma_spi_write;
+    // bma2x2.bus_read = &bma_spi_read;
+    // bma2x2.dev_addr = 102; // Random value. No chip select mechanism in place
+    // bma2x2.delay_msec = &spi_delay;
+    // BMA_ERROR_CHECK(init_bma(bma2x2));
 
-    NRF_LOG_INFO("BMA API initialised.");
+    // NRF_LOG_INFO("BMA API initialised.");
 
     while (1)
     {
+        uint8_t m_tx_buf[1] = {0x00 | BMA2x2_SPI_BUS_READ_CONTROL_BYTE};
+        uint8_t m_length = sizeof(m_tx_buf);
+        uint8_t m_rx_buf[1] = {0xFF};
+        APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi, m_tx_buf, m_length, m_rx_buf, 1));
+
+        spi_xfer_done = false;
+
         while (!spi_xfer_done)
         {
             __WFE();
         }
 
-        spi_xfer_done = false;
-
+        NRF_LOG_INFO("rx: %x", m_rx_buf[0]);
         NRF_LOG_FLUSH();
 
         nrf_delay_ms(200);

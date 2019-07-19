@@ -89,7 +89,7 @@
 // <4294967295=> Not connected 
 
 #ifndef SPI_SCK_PIN
-#define SPI_SCK_PIN 15
+#define SPI_SCK_PIN 20
 #endif
 
 // <o> SPI_MISO_PIN  - Pin number
@@ -129,7 +129,7 @@
 // <4294967295=> Not connected 
 
 #ifndef SPI_MISO_PIN
-#define SPI_MISO_PIN 28
+#define SPI_MISO_PIN 23
 #endif
 
 // <o> SPI_MOSI_PIN  - Pin number
@@ -169,7 +169,7 @@
 // <4294967295=> Not connected 
 
 #ifndef SPI_MOSI_PIN
-#define SPI_MOSI_PIN 8
+#define SPI_MOSI_PIN 22
 #endif
 
 // <o> SPI_SS_PIN  - Pin number
@@ -209,7 +209,7 @@
 // <4294967295=> Not connected 
 
 #ifndef SPI_SS_PIN
-#define SPI_SS_PIN 17
+#define SPI_SS_PIN 19
 #endif
 
 // <o> SPI_IRQ_PRIORITY  - Interrupt priority
@@ -1350,7 +1350,7 @@
 #endif
 // <o> NRF_LOG_BACKEND_UART_TX_PIN - UART TX pin 
 #ifndef NRF_LOG_BACKEND_UART_TX_PIN
-#define NRF_LOG_BACKEND_UART_TX_PIN 6
+#define NRF_LOG_BACKEND_UART_TX_PIN 26
 #endif
 
 // <o> NRF_LOG_BACKEND_UART_BAUDRATE  - Default Baudrate
