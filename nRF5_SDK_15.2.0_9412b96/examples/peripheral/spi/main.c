@@ -124,6 +124,51 @@ void spi_delay(u32 millis_time)
     nrf_delay_ms(millis_time);
 }
 
+s32 bma2x2_data_readout(struct bma2x2_t *bma2x2)
+{
+	/*Local variables for reading accel x, y and z data*/
+	s16	accel_x_s16, accel_y_s16, accel_z_s16 = BMA2x2_INIT_VALUE;
+
+	/* bma2x2acc_data_temp structure used to read
+		accel xyz and temperature data*/
+	struct bma2x2_accel_data sample_xyz;
+	/* Local variable used to assign the bandwidth value*/
+	u8 bw_value_u8 = BMA2x2_INIT_VALUE;
+	/* Local variable used to set the bandwidth value*/
+	u8 banwid = BMA2x2_INIT_VALUE;
+	/* status of communication*/
+	s32 com_rslt = ERROR;
+
+
+    com_rslt = bma2x2_init(bma2x2);
+    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_NORMAL);
+
+
+    bw_value_u8 = 0x08;/* set bandwidth of 7.81Hz*/
+	com_rslt += bma2x2_set_bw(bw_value_u8);
+
+	/* This API used to read back the written value of bandwidth*/
+	com_rslt += bma2x2_get_bw(&banwid);
+
+   	/* Read the accel X data*/
+	com_rslt += bma2x2_read_accel_x(&accel_x_s16);
+	/* Read the accel Y data*/
+	com_rslt += bma2x2_read_accel_y(&accel_y_s16);
+	/* Read the accel Z data*/
+	com_rslt += bma2x2_read_accel_z(&accel_z_s16);
+    NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", accel_x_s16, accel_y_s16, accel_y_s16);
+
+	/* accessing the bma2x2acc_data_temp parameter by using sample_xyzt*/
+	/* Read the accel XYZT data*/
+	com_rslt += bma2x2_read_accel_xyz(&sample_xyz);
+    NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", 
+    sample_xyz.x, sample_xyz.y, sample_xyz.z);
+
+    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_DEEP_SUSPEND);
+        
+    return com_rslt;
+}
+
 int main(void)
 {
     APP_ERROR_CHECK(NRF_LOG_INIT(NULL));
@@ -159,7 +204,7 @@ int main(void)
 
     while (1)
     {
-
+        bma2x2_data_readout(&bma2x2);
         while (!spi_xfer_done)
         {
             __WFE();
