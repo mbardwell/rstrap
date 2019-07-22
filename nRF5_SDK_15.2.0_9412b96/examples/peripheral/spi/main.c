@@ -58,7 +58,7 @@ static volatile bool spi_xfer_done;  /**< Flag used to indicate that SPI instanc
 #define SPI_BUFFER_LEN                      5
 static uint8_t       m_rx_buf[SPI_BUFFER_LEN];        /**< RX buffer. */
 
-#define BMA_ERROR_CHECK(ERR_CODE) { NRF_LOG_INFO("BMA Error: %d", (int8_t) ERR_CODE); }
+#define BMA_ERROR_CHECK(ERR_CODE) { APP_ERROR_CHECK((ret_code_t) ERR_CODE); }
 
 
 /**
@@ -72,36 +72,29 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
     NRF_LOG_INFO("Transfer completed.");
     if (m_rx_buf[0] != 0)
     {
-        NRF_LOG_INFO(" Received:");
-        NRF_LOG_HEXDUMP_INFO(m_rx_buf, strlen((const char *)m_rx_buf));
+        NRF_LOG_INFO(" Received: %x", m_rx_buf[0]);
     }
-}
-
-s32 init_bma(struct bma2x2_t bma2x2)
-{
-    s32 com_rslt = ERROR;
-    
-    com_rslt = bma2x2_init(&bma2x2);
-
-    return com_rslt;
 }
 
 s8 bma_spi_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
     s8 error = NO_ERROR;
-    uint8_t tx_buf[2*SPI_BUFFER_LEN];
-    uint8_t rx_buf[SPI_BUFFER_LEN];
+    uint8_t tx_buf[cnt+1];
 
-    for (uint8_t string_pos = 0; string_pos < cnt; string_pos++)
+    // place write bit + address in first byte
+    tx_buf[0] = (reg_addr++) & BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE;
+
+    for (uint8_t string_pos = 1; string_pos < cnt+1; string_pos++)
     {   
-        // place write bit + address in first byte
-        tx_buf[2*string_pos] = (reg_addr++) & BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE;
-        // place data in second byte (hence the + 1)        
-        tx_buf[2*string_pos + 1] = *(reg_data + string_pos);
+        // place data in second byte        
+        tx_buf[string_pos] = *(reg_data + string_pos - 1);
     }
 
-    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, rx_buf, (uint8_t) cnt);
-    BMA_ERROR_CHECK((int8_t) error);
+    spi_xfer_done = false;
+    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, cnt+1, NULL, 0);
+    BMA_ERROR_CHECK(error);
+
+    nrf_delay_us(100);
 
     return error;
 }
@@ -109,17 +102,18 @@ s8 bma_spi_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 s8 bma_spi_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
     s8 error = NO_ERROR;
-    uint8_t tx_buf[SPI_BUFFER_LEN];
-    uint8_t rx_buf[SPI_BUFFER_LEN];
+    uint8_t tx_buf[1] = {reg_addr|BMA2x2_SPI_BUS_READ_CONTROL_BYTE};
+    u8 array[cnt+1];
 
-    tx_buf[BMA2x2_INIT_VALUE] = reg_addr|BMA2x2_SPI_BUS_READ_CONTROL_BYTE;
+    spi_xfer_done = false;
+    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, 1, array, cnt+1);
+    BMA_ERROR_CHECK(error);
 
-    error = (s8) nrf_drv_spi_transfer(&spi, tx_buf, (uint8_t) cnt, rx_buf, (uint8_t) cnt);
-    BMA_ERROR_CHECK((int8_t) error);
+    nrf_delay_us(100);
 
-    for (uint8_t string_pos = 0; string_pos < cnt; string_pos++)
-    {   
-        *(reg_data + string_pos) = rx_buf[string_pos];
+    for (uint32_t i=0; i < cnt; i++)
+    {
+        *(reg_data + i) = array[i+1];
     }
 
     return error;
@@ -146,33 +140,32 @@ int main(void)
 
     NRF_LOG_INFO("SPI hardware initialised.");
 
-    // spi_xfer_done = false;
-    // struct bma2x2_t bma2x2;
-    // bma2x2.bus_write = &bma_spi_write;
-    // bma2x2.bus_read = &bma_spi_read;
-    // bma2x2.dev_addr = 102; // Random value. No chip select mechanism in place
-    // bma2x2.delay_msec = &spi_delay;
-    // BMA_ERROR_CHECK(init_bma(bma2x2));
+    struct bma2x2_t bma2x2;
+    bma2x2.chip_id = BMA2x2_INIT_VALUE;
+    bma2x2.bus_write = &bma_spi_write;
+    bma2x2.bus_read = &bma_spi_read;
+    bma2x2.dev_addr = 102; // Random value. No chip select mechanism in place
+    bma2x2.delay_msec = &spi_delay;
+    BMA_ERROR_CHECK(bma2x2_init(&bma2x2));
 
-    // NRF_LOG_INFO("BMA API initialised.");
+    if (bma2x2.chip_id == 0xFA)
+    {
+        NRF_LOG_INFO("BMA initialised.");
+    }
+    else
+    {
+        NRF_LOG_INFO("BMA initialisation failed. Received chip id: %x", bma2x2.chip_id);
+    }
 
     while (1)
     {
-        uint8_t m_tx_buf[1] = {0x00 | BMA2x2_SPI_BUS_READ_CONTROL_BYTE};
-        uint8_t m_length = sizeof(m_tx_buf);
-        uint8_t m_rx_buf[1] = {0xFF};
-        APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi, m_tx_buf, m_length, m_rx_buf, 1));
-
-        spi_xfer_done = false;
 
         while (!spi_xfer_done)
         {
             __WFE();
         }
-
-        NRF_LOG_INFO("rx: %x", m_rx_buf[0]);
         NRF_LOG_FLUSH();
 
-        nrf_delay_ms(200);
+        nrf_delay_ms(1000);
     }
 }
