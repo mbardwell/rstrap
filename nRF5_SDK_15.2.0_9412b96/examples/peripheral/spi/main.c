@@ -69,7 +69,6 @@ void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
                        void *                    p_context)
 {
     spi_xfer_done = true;
-    NRF_LOG_INFO("Transfer completed.");
     if (m_rx_buf[0] != 0)
     {
         NRF_LOG_INFO(" Received: %x", m_rx_buf[0]);
@@ -128,10 +127,6 @@ s32 bma2x2_data_readout(struct bma2x2_t *bma2x2)
 {
 	/*Local variables for reading accel x, y and z data*/
 	s16	accel_x_s16, accel_y_s16, accel_z_s16 = BMA2x2_INIT_VALUE;
-
-	/* bma2x2acc_data_temp structure used to read
-		accel xyz and temperature data*/
-	struct bma2x2_accel_data sample_xyz;
 	/* Local variable used to assign the bandwidth value*/
 	u8 bw_value_u8 = BMA2x2_INIT_VALUE;
 	/* Local variable used to set the bandwidth value*/
@@ -157,12 +152,6 @@ s32 bma2x2_data_readout(struct bma2x2_t *bma2x2)
 	/* Read the accel Z data*/
 	com_rslt += bma2x2_read_accel_z(&accel_z_s16);
     NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", accel_x_s16, accel_y_s16, accel_y_s16);
-
-	/* accessing the bma2x2acc_data_temp parameter by using sample_xyzt*/
-	/* Read the accel XYZT data*/
-	com_rslt += bma2x2_read_accel_xyz(&sample_xyz);
-    NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", 
-    sample_xyz.x, sample_xyz.y, sample_xyz.z);
 
     com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_DEEP_SUSPEND);
         
