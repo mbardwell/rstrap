@@ -9,9 +9,9 @@
 static volatile struct hx711_sample m_sample;
 static enum hx711_mode m_mode;
 #ifdef DEVKIT
-    #define PIN_PD_SCK 23
-    #define PIN_DOUT 24
-    #define PIN_VDD 25
+    #define PIN_PD_SCK 2
+    #define PIN_DOUT 26
+    #define PIN_VDD 27
 #else
     #define PIN_PD_SCK 7
     #define PIN_DOUT 5
