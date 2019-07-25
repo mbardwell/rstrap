@@ -45,7 +45,6 @@ void bma_spi_init()
     bma2x2.chip_id = BMA2x2_INIT_VALUE;
     bma2x2.bus_write = &bma_spi_write;
     bma2x2.bus_read = &bma_spi_read;
-    // bma2x2.dev_addr = 102; // Random value. No chip select mechanism in place
     bma2x2.delay_msec = &spi_delay;
     BMA_ERROR_CHECK(bma2x2_init(&bma2x2));
 
@@ -105,4 +104,39 @@ s8 bma_spi_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 void spi_delay(u32 millis_time)
 {
     nrf_delay_ms(millis_time);
+}
+
+s32 bma2x2_data_readout()
+{
+	/*Local variables for reading accel x, y and z data*/
+	s16	accel_x_s16, accel_y_s16, accel_z_s16 = BMA2x2_INIT_VALUE;
+	/* Local variable used to assign the bandwidth value*/
+	u8 bw_value_u8 = BMA2x2_INIT_VALUE;
+	/* Local variable used to set the bandwidth value*/
+	u8 banwid = BMA2x2_INIT_VALUE;
+	/* status of communication*/
+	s32 com_rslt = NO_ERROR;
+
+    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_NORMAL);
+
+
+    bw_value_u8 = 0x08;/* set bandwidth of 7.81Hz*/
+	com_rslt += bma2x2_set_bw(bw_value_u8);
+
+	/* This API used to read back the written value of bandwidth*/
+	com_rslt += bma2x2_get_bw(&banwid);
+
+   	/* Read the accel X data*/
+	com_rslt += bma2x2_read_accel_x(&accel_x_s16);
+	/* Read the accel Y data*/
+	com_rslt += bma2x2_read_accel_y(&accel_y_s16);
+	/* Read the accel Z data*/
+	com_rslt += bma2x2_read_accel_z(&accel_z_s16);
+    NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", accel_x_s16, accel_y_s16, accel_y_s16);
+
+    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_DEEP_SUSPEND);
+
+    BMA_ERROR_CHECK(com_rslt);
+        
+    return com_rslt;
 }

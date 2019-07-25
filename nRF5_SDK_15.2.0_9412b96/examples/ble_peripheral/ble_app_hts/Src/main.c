@@ -1090,7 +1090,7 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-        bma_spi_read(0, 0x10, 0x01, 1);
+        bma2x2_data_readout();
         idle_state_handle();
     }
 }
