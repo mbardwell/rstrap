@@ -1,6 +1,8 @@
 #pragma once
+#include "nrf_log.h"
 
-#define BMA_SPI_SS_PIN 17
-#define BMA_SPI_MISO_PIN 8
-#define BMA_SPI_MOSI_PIN 6
-#define BMA_SPI_SCK_PIN 15
+#define BMA_ERROR_CHECK(ERR_CODE) { APP_ERROR_CHECK((ret_code_t) ERR_CODE); }
+
+void bma_spi_init();
+
+void send_message();

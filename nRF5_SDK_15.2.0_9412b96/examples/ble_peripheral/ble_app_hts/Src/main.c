@@ -84,6 +84,7 @@
 #include "temperature.h"
 #include "nrf_drv_saadc.h"
 #include "stdlib.h"
+#include "accelerometer.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -1071,6 +1072,7 @@ int main(void)
     peer_manager_init();
     BatteryADCInit();
     Hx711Init(INPUT_CH_A_128);
+    bma_spi_init();
 
     if (debugEnabled)
     {
@@ -1088,6 +1090,7 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
+        send_message();
         idle_state_handle();
     }
 }
