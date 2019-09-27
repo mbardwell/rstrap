@@ -1,0 +1,38 @@
+#!/bin/bash
+# setup environment for Make-based development on Linux
+
+if ! [ hi = "GNU/Linux" ]; then
+    echo error: not a linux system. Exiting
+    exit 1
+fi
+
+# option to feed in arm eabi gcc compiler path (e.g. ./setup /your/path/)
+gnu_install_root=${1:-/usr/bin/} # "return false if $1 is unset or an empty string"
+
+gnu_prefix=$( ls ${gnu_install_root} | grep -o "arm-.*-eabi" | head -1 )
+
+if ${gnu_prefix}-gcc -v &> /dev/null; then
+    echo setting up environment for Make-based development
+    gnu_version=$(${gnu_prefix}-gcc --version | egrep -o "[0-9]{1,2}\.[0-9]\.[0-9]")
+else
+    echo gcc not installed. Please install and rerun setup. Exiting
+    exit 1
+fi
+
+echo install root: ${gnu_install_root}
+echo prefix: ${gnu_prefix}-gcc
+echo version: ${gnu_version}
+
+# update Makefile.posix
+path_to_makefile_posix=nRF5_SDK_15.2.0_9412b96/components/toolchain/gcc/Makefile.posix
+echo updating Makefile.posix
+
+if 
+sed -i "s|GNU_INSTALL_ROOT ?=.*|GNU_INSTALL_ROOT ?= ${gnu_install_root}|g" ${path_to_makefile_posix} && \
+sed -i "s|GNU_VERSION ?=.*|GNU_VERSION ?= ${gnu_version}|g" ${path_to_makefile_posix} && \
+sed -i "s|GNU_PREFIX ?=.*|GNU_PREFIX ?= ${gnu_prefix}|g" ${path_to_makefile_posix} 
+then
+    echo setup complete
+else
+    echo setup failed
+fi
