@@ -4,6 +4,10 @@
 * Firmware development for a BLE-enabled transportation safety device
 * Development is NRF52832 specific. Tests are run on a Fanstel BlueNor BT832F
 
+<p align="center">
+<img src="https://user-images.githubusercontent.com/11367325/65797133-b0595a80-e12b-11e9-8613-f1bada2212fb.png" alt="drawing" width="200"/>
+</p>
+
 ### Tree ###
 ```bash
 ├── nrf52.svd
@@ -31,15 +35,22 @@
 
 ### Setup ###
 
-* Clone repository
-```git clone https://github.com/mbardwell/rstrap/```
+* Use mount holes to connect printed circuit board to hardware
+* Plug in:
+  * J1: hx711 tension sensor
+  * J2: 3V power
 
+Device will start advertising itself
 
 ### Developer Setup ###
 
-* Follow the SDK setup steps found [here](https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk52.v0.9.1%2Findex.html)
-* [Segger Embedded Studio](https://www.segger.com/products/development-tools/embedded-studio/) is a good, free, IDE
-* Once SDK and Segger are setup. To compile any of the example code provided (each example is in its own folder), follow the instructions of the README in that folder.
+Linux:
+
+1. Clone repository
+```git clone https://github.com/mbardwell/rstrap/```
+2. Run ```./setup```
+
+Suggestion: the fastest way to start viewing the data is to download a cellphone app that allows you to scan and connect with bluetooth low energy devices (e.g. nRF Connect)
 
 
 ### Resources ###
