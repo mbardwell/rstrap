@@ -50,6 +50,17 @@ Linux:
 ```git clone https://github.com/mbardwell/rstrap/```
 2. Run ```./setup```
 
+
+Make optional arguments:
+
+* -jX: use X cores ([speeds up compiling](https://stackoverflow.com/questions/414714/compiling-with-g-using-multiple-cores))
+* DEBUG=1: turns on logging
+* DEBUG_PIN=X: sets debug pin to X [default pin found in ble_app_hts/pca10040/s132/config/sdk_config.h]
+* BAUDRATE=X: sets debug pin baudrate to X [default BR found in ble_app_hts/pca10040/s132/config/sdk_config.h]
+* DEVKIT=1: sets accelerometer, tension communication pins to natural areas on devkit board
+
+```e.g. sudo make -j8 flash DEBUG=1 DEBUG_PIN=22```
+
 Suggestion: the fastest way to start viewing the data is to download a cellphone app that allows you to scan and connect with bluetooth low energy devices (e.g. nRF Connect)
 
 
