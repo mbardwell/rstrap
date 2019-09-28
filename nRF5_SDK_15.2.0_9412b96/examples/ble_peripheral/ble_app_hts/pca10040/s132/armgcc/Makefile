@@ -14,14 +14,13 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 # debug build?
 DEBUG ?= 0
 DEBUG_PIN ?= 0
+BAUDRATE ?= 0
 # simulation build?
 SIMULATE ?= 0
 # devkit build?
 DEVKIT ?= 0
 # optimization
 OPT = -O3
-# Uncomment the line below to enable link time optimization
-#OPT += -flto
 
 # Source files common to all targets
 SRC_FILES += \
@@ -252,11 +251,15 @@ LIB_FILES += \
 
 # Debug option
 ifeq ($(DEBUG), 1)
+  # use 'make sdk_config -> nRF_Log -> NRF_LOG_BACKEND_UART_ENABLED' to see default params
 	C_DEFS += -DDEBUG
   C_DEFS += -DNRF_LOG_ENABLED=1
   C_DEFS += -DNRF_LOG_BACKEND_UART_ENABLED=1
   ifneq ($(DEBUG_PIN), 0)
     C_DEFS += -DNRF_LOG_BACKEND_UART_TX_PIN=$(DEBUG_PIN)
+  endif
+  ifneq ($(BAUDRATE), 0)
+    C_DEFS += -DNRF_LOG_BACKEND_UART_BAUDRATE=$(BAUDRATE)
   endif
 	OPT = -Og
 endif
