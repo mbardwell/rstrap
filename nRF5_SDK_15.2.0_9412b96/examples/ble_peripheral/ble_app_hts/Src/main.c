@@ -138,9 +138,9 @@
 #define DIODE_FWD_VOLT_DROP_MILLIVOLTS 270 //!< Typical forward voltage drop of the diode (Part no: SD103ATW-7-F) that is connected in series with the voltage supply. This is the voltage drop when the forward current is 1mA. Source: Data sheet of 'SURFACE MOUNT SCHOTTKY BARRIER DIODE ARRAY' available at www.diodes.com.
 #define ADC_RES_10BIT 1024                 //!< Maximum digital value for 10-bit ADC conversion.
 #define ADC_PRE_SCALING_COMPENSATION 6     //!< The ADC is configured to use VDD with 1/3 prescaling as input. And hence the result of conversion is to be multiplied by 3 to get the actual value of the battery voltage.
-#define ADC_RESULT_IN_MILLI_VOLTS(ADC_VALUE) \
-    ((((ADC_VALUE)*ADC_REF_VOLTAGE_IN_MILLIVOLTS) / ADC_RES_10BIT) * ADC_PRE_SCALING_COMPENSATION)
-#define MILLIVOLTS_TO_PERCENT(ADC_VALUE) (ADC_VALUE * 100 / PEAK_BATTERY_VOLTAGE_MV)
+#define LOWEST_ALLOWABLE_BATTERY_VOLTAGE 2120
+#define NOMINAL_FRESH_BATTERY_VOLTAGE 3000
+
 
 APP_TIMER_DEF(m_hts_timer_id);      // Health thermometer service timer
 APP_TIMER_DEF(m_tension_timer_id);  // Tension timer
@@ -280,10 +280,9 @@ static void battery_level_update(void)
         err_code = nrfx_saadc_sample_convert(NRF_SAADC_INPUT_VDD, &battery_level);
         APP_ERROR_CHECK(err_code);
 
-        /* ADC_RESULTS_IN_MILLI_VOLTS will return a value between 0-3600. Evidently, the value in
-           battery_level should not be larger than the actual possible voltage of your battery */
-        battery_level = ADC_RESULT_IN_MILLI_VOLTS(battery_level) + DIODE_FWD_VOLT_DROP_MILLIVOLTS;
-        battery_level = MILLIVOLTS_TO_PERCENT(battery_level);
+        /* AdcResultInMillivolts will return a value between 0-3600*/
+        battery_level = AdcResultInMillivolts(battery_level, ADC_REF_VOLTAGE_IN_MILLIVOLTS, ADC_RES_10BIT, ADC_PRE_SCALING_COMPENSATION) + DIODE_FWD_VOLT_DROP_MILLIVOLTS;
+        battery_level = MillivoltsToPercentCharge(battery_level, LOWEST_ALLOWABLE_BATTERY_VOLTAGE, NOMINAL_FRESH_BATTERY_VOLTAGE);
     }
 
     NRF_LOG_INFO("Sending battery measurement: %d", battery_level);

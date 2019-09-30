@@ -2,9 +2,6 @@
 
 #include <stdbool.h>
 
-/* Set this according to the manufacturer's specifications of the battery in your device */
-#define PEAK_BATTERY_VOLTAGE_MV 3000
-
 #ifdef DEBUG
     bool debugEnabled = true;
 #else
