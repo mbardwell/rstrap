@@ -358,12 +358,11 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 UNAME := $(shell uname)
 
-# Clean
 clean:
   ifeq ($(UNAME), Linux)
 	  sudo rm -rf _build
   else
-    del /s /q _build
+		@echo os no supported for clean target
   endif
 
 # Flash the program
@@ -372,7 +371,6 @@ flash: default
 	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex --sectorerase
 	nrfjprog -f nrf52 --reset
 
-# Flash softdevice
 flash_softdevice:
 	@echo Flashing: s132_nrf52_6.1.0_softdevice.hex
 	nrfjprog -f nrf52 --program $(SDK_ROOT)/components/softdevice/s132/hex/s132_nrf52_6.1.0_softdevice.hex --sectorerase
