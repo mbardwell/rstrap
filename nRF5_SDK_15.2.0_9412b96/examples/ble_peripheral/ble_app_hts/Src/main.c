@@ -100,6 +100,16 @@ NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising); /**< Advertising module instance. */
 
+volatile bool battery_level_update_flag = false;
+volatile bool tension_level_update_flag = false;
+volatile bool hts_level_update_flag = false;
+volatile bool accel_level_update_flag = false;
+
+volatile int battery_level_update_counter = 0;
+volatile int tension_level_update_counter = 0;
+volatile int hts_level_update_counter = 0;
+volatile int accel_level_update_counter = 0;
+
 static sensorsim_cfg_t m_tension_sim_cfg;                // Tension sensor simulator configuration
 static sensorsim_state_t m_tension_sim_state;            // Tension sensor simulator state
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
@@ -256,19 +266,20 @@ static void battery_level_update(void)
 static void battery_level_meas_timeout_handler(void *p_context)
 {
     UNUSED_PARAMETER(p_context);
-    battery_level_update();
+    battery_level_update_flag = true;
 }
 
 static void tension_timer_timeout_handler(void *p_context)
 {
     UNUSED_PARAMETER(p_context);
-    TensionLevelUpdate();
+    tension_level_update_flag = true;
 }
 
 static void hts_timer_timeout_handler(void *p_context)
 {
     UNUSED_PARAMETER(p_context);
-    temperature_measurement_send();
+    hts_level_update_flag = true;
+    accel_level_update_flag = true;
 }
 
 /**@brief Function for populating simulated health thermometer measurement.
@@ -593,10 +604,10 @@ static void application_timers_start(void)
     err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_start(m_tension_timer_id, APP_TIMER_TICKS(2000), NULL);
+    err_code = app_timer_start(m_tension_timer_id, TENSION_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_start(m_hts_timer_id, APP_TIMER_TICKS(2000), NULL);
+    err_code = app_timer_start(m_hts_timer_id, HTS_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -1037,7 +1048,34 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-        bma2x2_data_readout();
+        if (battery_level_update_flag)
+        {
+            battery_level_update();
+            battery_level_update_flag = false;
+            battery_level_update_counter++;
+            NRF_LOG_INFO("Battery counter: %d", battery_level_update_counter);
+        }
+        if (tension_level_update_flag)
+        {
+            TensionLevelUpdate();
+            tension_level_update_flag = false;
+            tension_level_update_counter++;
+            NRF_LOG_INFO("Tension counter: %d", tension_level_update_counter);
+        }
+        if (hts_level_update_flag)
+        {
+            temperature_measurement_send();
+            hts_level_update_flag = false;
+            hts_level_update_counter++;
+            NRF_LOG_INFO("Hts counter: %d", hts_level_update_counter);
+        }
+        if (accel_level_update_flag)
+        {
+            bma2x2_data_readout(&m_nus, &m_conn_handle);
+            accel_level_update_flag = false;
+            accel_level_update_counter++;
+            NRF_LOG_INFO("Accel counter: %d", accel_level_update_counter);
+        }
         idle_state_handle();
     }
 }

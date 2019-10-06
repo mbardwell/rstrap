@@ -106,7 +106,35 @@ void spi_delay(u32 millis_time)
     nrf_delay_ms(millis_time);
 }
 
-s32 bma2x2_data_readout()
+
+
+
+void send_accel_over_uart(s16 x, s16 y, s16 z, ble_nus_t* m_nus, uint16_t* m_conn_handle)
+{
+    ret_code_t err_code;
+    static uint16_t max_n_digits = 3; // accel is 16-bit measurement. Add byte for EOL char
+    uint8_t accel_x[max_n_digits];
+    uint8_t accel_y[max_n_digits];
+    uint8_t accel_z[max_n_digits];
+
+    uint16_big_encode((u16) x, accel_x);
+    uint16_big_encode((u16) y, accel_y);
+    uint16_big_encode((u16) z, accel_z);
+
+    err_code = ble_nus_data_send(m_nus, accel_x, &max_n_digits, *m_conn_handle);
+    err_code = ble_nus_data_send(m_nus, accel_y, &max_n_digits, *m_conn_handle);
+    err_code = ble_nus_data_send(m_nus, accel_z, &max_n_digits, *m_conn_handle);
+
+    if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
+    {
+        APP_ERROR_CHECK(err_code);
+    }
+}
+
+
+
+
+s32 bma2x2_data_readout(ble_nus_t* nus, uint16_t* handler)
 {
 	/*Local variables for reading accel x, y and z data*/
 	s16	accel_x_s16, accel_y_s16, accel_z_s16 = BMA2x2_INIT_VALUE;
@@ -137,6 +165,8 @@ s32 bma2x2_data_readout()
     com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_DEEP_SUSPEND);
 
     BMA_ERROR_CHECK(com_rslt);
+
+    send_accel_over_uart(accel_x_s16, accel_y_s16, accel_z_s16, nus, handler);
         
     return com_rslt;
 }

@@ -27,6 +27,8 @@
 
 #define APP_ADV_DURATION 18000 /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
+#define HTS_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
+#define TENSION_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
 #define BATTERY_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000) /**< Battery level measurement interval (ticks). */
 #define MIN_BATTERY_LEVEL 81                              /**< Minimum battery level as returned by the simulated measurement function. */
 #define MAX_BATTERY_LEVEL 100                             /**< Maximum battery level as returned by the simulated measurement function. */
