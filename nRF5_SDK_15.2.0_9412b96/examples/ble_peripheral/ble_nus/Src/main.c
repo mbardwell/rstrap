@@ -61,7 +61,6 @@
 #include "ble_advdata.h"
 #include "ble_advertising.h"
 #include "ble_bas.h"
-#include "ble_hts_custom.h"
 #include "ble_dis.h"
 #include "ble_conn_params.h"
 #include "sensorsim.h"
@@ -90,47 +89,40 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-APP_TIMER_DEF(m_hts_timer_id);      // Health thermometer service timer
+APP_TIMER_DEF(m_temp_timer_id);      // Health thermometer service timer
 APP_TIMER_DEF(m_tension_timer_id);  // Tension timer
-BLE_NUS_DEF(m_nus, 1);              // Nordic UART Service structure
 APP_TIMER_DEF(m_battery_timer_id);  /**< Battery timer. */
+BLE_NUS_DEF(m_nus, 1);              // Nordic UART Service structure
 BLE_BAS_DEF(m_bas);                 /**< Structure used to identify the battery service. */
-BLE_HTS_DEF_CUSTOM(m_hts);                 /**< Structure used to identify the health thermometer service. */
 NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising); /**< Advertising module instance. */
 
 volatile bool battery_level_update_flag = false;
 volatile bool tension_level_update_flag = false;
-volatile bool hts_level_update_flag = false;
+volatile bool temp_level_update_flag = false;
 volatile bool accel_level_update_flag = false;
 
 volatile int battery_level_update_counter = 0;
 volatile int tension_level_update_counter = 0;
-volatile int hts_level_update_counter = 0;
+volatile int temp_level_update_counter = 0;
 volatile int accel_level_update_counter = 0;
 
-static sensorsim_cfg_t m_tension_sim_cfg;                // Tension sensor simulator configuration
-static sensorsim_state_t m_tension_sim_state;            // Tension sensor simulator state
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
-static bool m_hts_meas_ind_conf_pending = false;   /**< Flag to keep track of when an indication confirmation is pending. */
+static sensorsim_cfg_t m_tension_sim_cfg;                // Tension sensor simulator configuration
+static sensorsim_state_t m_tension_sim_state;            // Tension sensor simulator state
 static sensorsim_cfg_t m_battery_sim_cfg;          /**< Battery Level sensor simulator configuration. */
 static sensorsim_state_t m_battery_sim_state;      /**< Battery Level sensor simulator state. */
-static sensorsim_cfg_t m_temp_celcius_sim_cfg;     /**< Temperature simulator configuration. */
-static sensorsim_state_t m_temp_celcius_sim_state; /**< Temperature simulator state. */
 
 /* Not enough bytes left for us to include the NUS service in 
    the adv packet; once we connect the NUS is visible. */
 static ble_uuid_t m_adv_uuids[] = /**< Universally unique service identifiers. */
     {
-        {BLE_UUID_HEALTH_THERMOMETER_SERVICE, BLE_UUID_TYPE_BLE},
         {BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE},
         {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}};
 
 static void advertising_start(bool erase_bonds);
-static void temperature_measurement_send(void);
-static void hts_sim_measurement(ble_hts_meas_t *p_meas);
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -154,24 +146,12 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name)
  */
 static void pm_evt_handler(pm_evt_t const *p_evt)
 {
-    ret_code_t err_code;
-    bool is_indication_enabled;
-
     pm_handler_on_pm_evt(p_evt);
     pm_handler_flash_clean(p_evt);
 
     switch (p_evt->evt_id)
     {
     case PM_EVT_CONN_SEC_SUCCEEDED:
-        // Send a single temperature measurement if indication is enabled.
-        // NOTE: For this to work, make sure ble_hts_on_ble_evt() is called before
-        // pm_evt_handler() in ble_evt_dispatch().
-        err_code = ble_hts_is_indication_enabled(&m_hts, &is_indication_enabled);
-        APP_ERROR_CHECK(err_code);
-        if (is_indication_enabled)
-        {
-            temperature_measurement_send();
-        }
         break;
 
     case PM_EVT_PEERS_DELETE_SUCCEEDED:
@@ -180,6 +160,16 @@ static void pm_evt_handler(pm_evt_t const *p_evt)
 
     default:
         break;
+    }
+}
+
+static void send_over_nus(uint8_t *data, uint16_t *length)
+{
+    ret_code_t err_code;
+    err_code = ble_nus_data_send(&m_nus, data, length, m_conn_handle);
+    if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
+    {
+        APP_ERROR_CHECK(err_code);
     }
 }
 
@@ -256,6 +246,34 @@ static void battery_level_update(void)
     }
 }
 
+/**@brief Function for sending one temperature measurement over nus service.
+ */
+static void nus_update_temperature(void)
+{
+    static int32_t temperature;
+    static uint8_t sign = 0x2B; // sign is default + in ascii
+    static uint16_t max_n_ascii_characters = 1+1+2; // Byte order: nus tag, sign (+/-), two digits for temperature
+    uint8_t temperature_in_ascii[max_n_ascii_characters];
+
+    temperature_sample(&temperature); // returns temperature in celcius
+    NRF_LOG_INFO("Sending temperature measurement: %d", temperature);
+    if (temperature > 99 || temperature < -99)
+    {
+        NRF_LOG_WARNING("Temperature exceeds two-digit bound. Not sent over nus");
+        return;
+    }
+    else if (temperature < 0)
+    {
+        sign = 0x2D;
+        temperature = abs(temperature);
+    }
+    
+    temperature_in_ascii[0] = NUS_TEMP_TAG;
+    temperature_in_ascii[1] = sign;
+    __itoa(temperature, (char*) temperature_in_ascii+2, 10);
+    send_over_nus(temperature_in_ascii, &max_n_ascii_characters);
+}
+
 /**@brief Function for handling the Battery measurement timer timeout.
  *
  * @details This function will be called each time the battery level measurement timer expires.
@@ -275,45 +293,11 @@ static void tension_timer_timeout_handler(void *p_context)
     tension_level_update_flag = true;
 }
 
-static void hts_timer_timeout_handler(void *p_context)
+static void temp_timer_timeout_handler(void *p_context)
 {
     UNUSED_PARAMETER(p_context);
-    hts_level_update_flag = true;
+    temp_level_update_flag = true;
     accel_level_update_flag = true;
-}
-
-/**@brief Function for populating simulated health thermometer measurement.
- */
-static void hts_sim_measurement(ble_hts_meas_t *p_meas)
-{
-    static ble_date_time_t time_stamp = {2012, 12, 5, 11, 50, 0};
-
-    uint32_t celciusX100;
-
-    p_meas->temp_in_fahr_units = false;
-    p_meas->time_stamp_present = true;
-    p_meas->temp_type_present = (TEMP_TYPE_AS_CHARACTERISTIC ? false : true);
-
-    celciusX100 = sensorsim_measure(&m_temp_celcius_sim_state, &m_temp_celcius_sim_cfg);
-
-    p_meas->temp_in_celcius.exponent = -2;
-    p_meas->temp_in_celcius.mantissa = celciusX100;
-    p_meas->temp_in_fahr.exponent = -2;
-    p_meas->temp_in_fahr.mantissa = (32 * 100) + ((celciusX100 * 9) / 5);
-    p_meas->time_stamp = time_stamp;
-    p_meas->temp_type = BLE_HTS_TEMP_TYPE_FINGER;
-
-    // update simulated time stamp
-    time_stamp.seconds += 27;
-    if (time_stamp.seconds > 59)
-    {
-        time_stamp.seconds -= 60;
-        time_stamp.minutes++;
-        if (time_stamp.minutes > 59)
-        {
-            time_stamp.minutes = 0;
-        }
-    }
 }
 
 /**@brief Function for the Timer initialization.
@@ -339,9 +323,9 @@ static void timers_init(void)
                                 tension_timer_timeout_handler);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_create(&m_hts_timer_id,
+    err_code = app_timer_create(&m_temp_timer_id,
                                 APP_TIMER_MODE_REPEATED,
-                                hts_timer_timeout_handler);
+                                temp_timer_timeout_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -398,71 +382,6 @@ static void gatt_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for simulating and sending one Temperature Measurement.
- */
-static void temperature_measurement_send(void)
-{
-    ble_hts_meas_t temperature_meas;
-    ret_code_t err_code;
-
-        if (simEnabled)
-        {
-            hts_sim_measurement(&temperature_meas);
-        }
-        else
-        {
-            ReadTemperature(&temperature_meas);
-        }
-
-        /* For logging instead of including the entire math library I just assume .exponent = -2 (ie mantissa x 0.01)*/
-        NRF_LOG_INFO("Sending temperature measurement: %d", temperature_meas.temp_in_celcius.mantissa * 0.01);
-
-    err_code = ble_hts_measurement_send_custom(&m_hts, &temperature_meas);
-
-        switch (err_code)
-        {
-        case NRF_SUCCESS:
-            // Measurement was successfully sent, wait for confirmation.
-            m_hts_meas_ind_conf_pending = true;
-            break;
-
-        case NRF_ERROR_INVALID_STATE:
-            // Ignore error.
-            break;
-
-        default:
-            APP_ERROR_HANDLER(err_code);
-            break;
-        }
-    }
-
-/**@brief Function for handling the Health Thermometer Service events.
- *
- * @details This function will be called for all Health Thermometer Service events which are passed
- *          to the application.
- *
- * @param[in] p_hts  Health Thermometer Service structure.
- * @param[in] p_evt  Event received from the Health Thermometer Service.
- */
-static void on_hts_evt(ble_hts_t *p_hts, ble_hts_evt_t *p_evt)
-{
-    switch (p_evt->evt_type)
-    {
-    case BLE_HTS_EVT_INDICATION_ENABLED:
-        // Indication has been enabled, send a single temperature measurement
-        temperature_measurement_send();
-        break;
-
-    case BLE_HTS_EVT_INDICATION_CONFIRMED:
-        m_hts_meas_ind_conf_pending = false;
-        break;
-
-    default:
-        // No implementation needed.
-        break;
-    }
-}
-
 /**@brief Function for handling Queued Write Module errors.
  *
  * @details A pointer to this function will be passed to each service which may need to inform the
@@ -499,7 +418,6 @@ static void nus_data_handler(ble_nus_evt_t *p_evt)
 static void services_init(void)
 {
     ret_code_t err_code;
-    ble_hts_init_t hts_init;
     ble_bas_init_t bas_init;
     ble_dis_init_t dis_init;
     nrf_ble_qwr_init_t qwr_init = {0};
@@ -510,20 +428,6 @@ static void services_init(void)
     qwr_init.error_handler = nrf_qwr_error_handler;
 
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
-    APP_ERROR_CHECK(err_code);
-
-    // Initialize Health Thermometer Service
-    memset(&hts_init, 0, sizeof(hts_init));
-
-    hts_init.evt_handler = on_hts_evt;
-    hts_init.temp_type_as_characteristic = TEMP_TYPE_AS_CHARACTERISTIC;
-    hts_init.temp_type = BLE_HTS_TEMP_TYPE_BODY;
-
-    // Here the sec level for the Health Thermometer Service can be changed/increased.
-    hts_init.ht_meas_cccd_wr_sec = SEC_JUST_WORKS;
-    hts_init.ht_type_rd_sec = SEC_OPEN;
-
-    err_code = ble_hts_init(&m_hts, &hts_init);
     APP_ERROR_CHECK(err_code);
 
     // Initialize Battery Service.
@@ -584,14 +488,6 @@ static void sensor_simulator_init(void)
     m_battery_sim_cfg.start_at_max = true;
 
     sensorsim_init(&m_battery_sim_state, &m_battery_sim_cfg);
-
-    // Temperature is in celcius (it is multiplied by 100 to avoid floating point arithmetic).
-    m_temp_celcius_sim_cfg.min = MIN_CELCIUS_DEGREES;
-    m_temp_celcius_sim_cfg.max = MAX_CELCIUS_DEGRESS;
-    m_temp_celcius_sim_cfg.incr = CELCIUS_DEGREES_INCREMENT;
-    m_temp_celcius_sim_cfg.start_at_max = false;
-
-    sensorsim_init(&m_temp_celcius_sim_state, &m_temp_celcius_sim_cfg);
 }
 
 /**@brief Function for starting application timers.
@@ -607,7 +503,7 @@ static void application_timers_start(void)
     err_code = app_timer_start(m_tension_timer_id, TENSION_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_start(m_hts_timer_id, HTS_LEVEL_MEAS_INTERVAL, NULL);
+    err_code = app_timer_start(m_temp_timer_id, TEMP_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -624,7 +520,7 @@ static void application_timers_stop(void)
     err_code = app_timer_stop(m_tension_timer_id);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_stop(m_hts_timer_id);
+    err_code = app_timer_stop(m_temp_timer_id);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -753,7 +649,6 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
     case BLE_GAP_EVT_DISCONNECTED:
         NRF_LOG_INFO("Disconnected.");
         m_conn_handle = BLE_CONN_HANDLE_INVALID;
-        m_hts_meas_ind_conf_pending = false;
         application_timers_stop();
         break;
 
@@ -858,10 +753,6 @@ static void bsp_event_handler(bsp_event_t event)
         break;
 
     case BSP_EVENT_KEY_0:
-        if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
-        {
-            temperature_measurement_send();
-        }
         break;
 
     default:
@@ -1062,12 +953,12 @@ int main(void)
             tension_level_update_counter++;
             NRF_LOG_INFO("Tension counter: %d", tension_level_update_counter);
         }
-        if (hts_level_update_flag)
+        if (temp_level_update_flag)
         {
-            temperature_measurement_send();
-            hts_level_update_flag = false;
-            hts_level_update_counter++;
-            NRF_LOG_INFO("Hts counter: %d", hts_level_update_counter);
+            nus_update_temperature();
+            temp_level_update_flag = false;
+            temp_level_update_counter++;
+            NRF_LOG_INFO("Temp counter: %d", temp_level_update_counter);
         }
         if (accel_level_update_flag)
         {

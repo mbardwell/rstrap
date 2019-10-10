@@ -14,6 +14,8 @@
     bool simEnabled = false;
 #endif
 
+#define NUS_TEMP_TAG        0x0
+
 #define DEVICE_NAME "Nordic_HTS"                /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME "NordicSemiconductor" /**< Manufacturer. Will be passed to Device Information Service. */
 #define MODEL_NUM "NS-HTS-EXAMPLE"              /**< Model number. Will be passed to Device Information Service. */
@@ -27,7 +29,7 @@
 
 #define APP_ADV_DURATION 18000 /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
-#define HTS_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
+#define TEMP_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
 #define TENSION_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
 #define BATTERY_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000) /**< Battery level measurement interval (ticks). */
 #define MIN_BATTERY_LEVEL 81                              /**< Minimum battery level as returned by the simulated measurement function. */

@@ -28,7 +28,6 @@ SRC_FILES += \
   $(PROJ_DIR)/Src/battery.c \
   $(PROJ_DIR)/Src/tension.c \
   $(PROJ_DIR)/Src/temperature.c \
-  $(PROJ_DIR)/Src/ble_hts_custom.c \
   $(PROJ_DIR)/Src/accelerometer.c \
   $(PROJ_DIR)/Src/bma2x2.c \
   $(SDK_ROOT)/components/ble/ble_services/ble_nus/ble_nus.c \
