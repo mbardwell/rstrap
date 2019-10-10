@@ -60,7 +60,6 @@
 #include "ble_srv_common.h"
 #include "ble_advdata.h"
 #include "ble_advertising.h"
-#include "ble_bas.h"
 #include "ble_dis.h"
 #include "ble_conn_params.h"
 #include "sensorsim.h"
@@ -93,7 +92,6 @@ APP_TIMER_DEF(m_temp_timer_id);      // Health thermometer service timer
 APP_TIMER_DEF(m_tension_timer_id);  // Tension timer
 APP_TIMER_DEF(m_battery_timer_id);  /**< Battery timer. */
 BLE_NUS_DEF(m_nus, 1);              // Nordic UART Service structure
-BLE_BAS_DEF(m_bas);                 /**< Structure used to identify the battery service. */
 NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising); /**< Advertising module instance. */
@@ -112,15 +110,11 @@ static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the curr
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
 static sensorsim_cfg_t m_tension_sim_cfg;                // Tension sensor simulator configuration
 static sensorsim_state_t m_tension_sim_state;            // Tension sensor simulator state
-static sensorsim_cfg_t m_battery_sim_cfg;          /**< Battery Level sensor simulator configuration. */
-static sensorsim_state_t m_battery_sim_state;      /**< Battery Level sensor simulator state. */
 
 /* Not enough bytes left for us to include the NUS service in 
    the adv packet; once we connect the NUS is visible. */
 static ble_uuid_t m_adv_uuids[] = /**< Universally unique service identifiers. */
-    {
-        {BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE},
-        {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}};
+    {{BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}};
 
 static void advertising_start(bool erase_bonds);
 
@@ -211,39 +205,26 @@ static void TensionLevelUpdate(void)
     }
 }
 
-/**@brief Function for performing a battery measurement, and update the Battery Level characteristic in the Battery Service.
+/**@brief Function for sending a battery measurement over nus service
  */
-static void battery_level_update(void)
+static void nus_update_battery_voltage(void)
 {
-    ret_code_t err_code;
-    nrf_saadc_value_t battery_level;
+    int16_t voltage;
+    static uint16_t max_n_ascii_characters = 1+4; // Byte order: nus tag, four digits for milli-voltage
+    uint8_t voltage_in_ascii[max_n_ascii_characters];
 
-    if (simEnabled)
-    {
-        battery_level = (nrf_saadc_value_t)sensorsim_measure(&m_battery_sim_state, &m_battery_sim_cfg);
-    }
-    else
-    {
-        /* nrfx_saadc_sample_convert will put a value between 0-1023 in battery_level */
-        err_code = nrfx_saadc_sample_convert(NRF_SAADC_INPUT_VDD, &battery_level);
-        APP_ERROR_CHECK(err_code);
+    battery_level_in_mv(&voltage);
+    NRF_LOG_INFO("Sending battery voltage in mV: %d", voltage);
 
-        /* AdcResultInMillivolts will return a value between 0-3600*/
-        battery_level = AdcResultInMillivolts(battery_level, ADC_REF_VOLTAGE_IN_MILLIVOLTS, ADC_RES_10BIT, ADC_PRE_SCALING_COMPENSATION) + DIODE_FWD_VOLT_DROP_MILLIVOLTS;
-        battery_level = MillivoltsToPercentCharge(battery_level, LOWEST_ALLOWABLE_BATTERY_VOLTAGE, NOMINAL_FRESH_BATTERY_VOLTAGE);
+    if (voltage > 9999 || voltage < 1000)
+    {
+        NRF_LOG_WARNING("Voltage outside of 4 digit bound. Not sent over nus");
+        return;
     }
 
-    NRF_LOG_INFO("Sending battery measurement: %d", battery_level);
-
-    err_code = ble_bas_battery_level_update(&m_bas, (uint8_t)battery_level, m_conn_handle);
-    if ((err_code != NRF_SUCCESS) &&
-        (err_code != NRF_ERROR_INVALID_STATE) &&
-        (err_code != NRF_ERROR_RESOURCES) &&
-        (err_code != NRF_ERROR_BUSY) &&
-        (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))
-    {
-        APP_ERROR_HANDLER(err_code);
-    }
+    voltage_in_ascii[0] = NUS_BATTERY_TAG;
+    __itoa(voltage, (char*) voltage_in_ascii+1, 10);
+    send_over_nus(voltage_in_ascii, &max_n_ascii_characters);
 }
 
 /**@brief Function for sending one temperature measurement over nus service.
@@ -274,9 +255,9 @@ static void nus_update_temperature(void)
     send_over_nus(temperature_in_ascii, &max_n_ascii_characters);
 }
 
-/**@brief Function for handling the Battery measurement timer timeout.
+/**@brief Functions for handling the timer timeouts.
  *
- * @details This function will be called each time the battery level measurement timer expires.
+ * @details This function will be called each time a timer expires.
  *
  * @param[in] p_context   Pointer used for passing some arbitrary information (context) from the
  *                        app_start_timer() call to the timeout handler.
@@ -418,7 +399,6 @@ static void nus_data_handler(ble_nus_evt_t *p_evt)
 static void services_init(void)
 {
     ret_code_t err_code;
-    ble_bas_init_t bas_init;
     ble_dis_init_t dis_init;
     nrf_ble_qwr_init_t qwr_init = {0};
     ble_dis_sys_id_t sys_id;
@@ -428,22 +408,6 @@ static void services_init(void)
     qwr_init.error_handler = nrf_qwr_error_handler;
 
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
-    APP_ERROR_CHECK(err_code);
-
-    // Initialize Battery Service.
-    memset(&bas_init, 0, sizeof(bas_init));
-
-    // Here the sec level for the Battery Service can be changed/increased.
-    bas_init.bl_rd_sec = SEC_OPEN;
-    bas_init.bl_cccd_wr_sec = SEC_OPEN;
-    bas_init.bl_report_rd_sec = SEC_OPEN;
-
-    bas_init.evt_handler = NULL;
-    bas_init.support_notification = true;
-    bas_init.p_report_ref = NULL;
-    bas_init.initial_batt_level = 100;
-
-    err_code = ble_bas_init(&m_bas, &bas_init);
     APP_ERROR_CHECK(err_code);
 
     // Initialize Device Information Service.
@@ -481,13 +445,6 @@ static void sensor_simulator_init(void)
     m_tension_sim_cfg.start_at_max = true;
 
     sensorsim_init(&m_tension_sim_state, &m_tension_sim_cfg);
-
-    m_battery_sim_cfg.min = MIN_BATTERY_LEVEL;
-    m_battery_sim_cfg.max = MAX_BATTERY_LEVEL;
-    m_battery_sim_cfg.incr = BATTERY_LEVEL_INCREMENT;
-    m_battery_sim_cfg.start_at_max = true;
-
-    sensorsim_init(&m_battery_sim_state, &m_battery_sim_cfg);
 }
 
 /**@brief Function for starting application timers.
@@ -919,7 +876,7 @@ int main(void)
     sensor_simulator_init();
     conn_params_init();
     peer_manager_init();
-    BatteryADCInit();
+    battery_adc_init();
     Hx711Init(INPUT_CH_A_128);
     bma_spi_init();
 
@@ -941,7 +898,7 @@ int main(void)
     {
         if (battery_level_update_flag)
         {
-            battery_level_update();
+            nus_update_battery_voltage();
             battery_level_update_flag = false;
             battery_level_update_counter++;
             NRF_LOG_INFO("Battery counter: %d", battery_level_update_counter);

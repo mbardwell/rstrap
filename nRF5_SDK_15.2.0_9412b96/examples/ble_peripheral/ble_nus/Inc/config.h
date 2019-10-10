@@ -14,7 +14,10 @@
     bool simEnabled = false;
 #endif
 
-#define NUS_TEMP_TAG        0x0
+#define NUS_ACCEL_TAG			0x0
+#define NUS_BATTERY_TAG			0x1
+#define NUS_TEMP_TAG            0x2
+#define NUS_TENSION_TAG         0x3
 
 #define DEVICE_NAME "Nordic_HTS"                /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME "NordicSemiconductor" /**< Manufacturer. Will be passed to Device Information Service. */
@@ -29,18 +32,10 @@
 
 #define APP_ADV_DURATION 18000 /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
+#define ACCEL_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
+#define BATTERY_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
 #define TEMP_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
 #define TENSION_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000)
-#define BATTERY_LEVEL_MEAS_INTERVAL APP_TIMER_TICKS(2000) /**< Battery level measurement interval (ticks). */
-#define MIN_BATTERY_LEVEL 81                              /**< Minimum battery level as returned by the simulated measurement function. */
-#define MAX_BATTERY_LEVEL 100                             /**< Maximum battery level as returned by the simulated measurement function. */
-#define BATTERY_LEVEL_INCREMENT 1                         /**< Value by which the battery level is incremented/decremented for each call to the simulated measurement function. */
-
-#define TEMP_TYPE_AS_CHARACTERISTIC 0 /**< Determines if temperature type is given as characteristic (1) or as a field of measurement (0). */
-
-#define MIN_CELCIUS_DEGREES 3688     /**< Minimum temperature in celcius for use in the simulated measurement function (multiplied by 100 to avoid floating point arithmetic). */
-#define MAX_CELCIUS_DEGRESS 3972     /**< Maximum temperature in celcius for use in the simulated measurement function (multiplied by 100 to avoid floating point arithmetic). */
-#define CELCIUS_DEGREES_INCREMENT 36 /**< Value by which temperature is incremented/decremented for each call to the simulated measurement function (multiplied by 100 to avoid floating point arithmetic). */
 
 #define MIN_CONN_INTERVAL MSEC_TO_UNITS(50, UNIT_1_25_MS)  /**< Minimum acceptable connection interval (0.5 seconds) */
 #define MAX_CONN_INTERVAL MSEC_TO_UNITS(100, UNIT_1_25_MS) /**< Maximum acceptable connection interval (1 second). */
@@ -61,10 +56,3 @@
 #define SEC_PARAM_MAX_KEY_SIZE 16                      /**< Maximum encryption key size. */
 
 #define DEAD_BEEF 0xDEADBEEF /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
-
-#define ADC_REF_VOLTAGE_IN_MILLIVOLTS 600  //!< Reference voltage (in milli volts) used by ADC while doing conversion.
-#define DIODE_FWD_VOLT_DROP_MILLIVOLTS 270 //!< Typical forward voltage drop of the diode (Part no: SD103ATW-7-F) that is connected in series with the voltage supply. This is the voltage drop when the forward current is 1mA. Source: Data sheet of 'SURFACE MOUNT SCHOTTKY BARRIER DIODE ARRAY' available at www.diodes.com.
-#define ADC_RES_10BIT 1024                 //!< Maximum digital value for 10-bit ADC conversion.
-#define ADC_PRE_SCALING_COMPENSATION 6     //!< The ADC is configured to use VDD with 1/3 prescaling as input. And hence the result of conversion is to be multiplied by 3 to get the actual value of the battery voltage.
-#define LOWEST_ALLOWABLE_BATTERY_VOLTAGE 2120
-#define NOMINAL_FRESH_BATTERY_VOLTAGE 3000
