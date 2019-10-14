@@ -6,7 +6,8 @@
 #include "nrf_drv_gpiote.h"
 #include "nrf_gpiote.h"
 
-static volatile struct hx711_sample m_sample;
+static hx711_evt_handler_t hx711_callback = NULL; 
+static struct hx711_sample m_sample;
 static enum hx711_mode m_mode;
 #ifdef DEVKIT
     #define PIN_PD_SCK 2
@@ -30,30 +31,16 @@ static struct hx711_setup setup = {
     DEFAULT_ADC_RES
     };
 
-/**
- * @brief Function for converting HX711 sample
- */
-static uint32_t Hx711Convert(uint32_t sample)
-{
-    uint32_t converted = (sample << 8) >> 8;
-    if (converted > 0xFFFFFF)
-    {
-        NRF_LOG_INFO("ERROR: converted value greater than possible for 24-bit sample");
-        // TODO: Deal with this
-    }
-
-    return converted;
-}
-
 void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     nrf_drv_gpiote_in_event_disable(setup.dout_pin);
-    Hx711Sample();
+    hx711_sample();
 }
 
-void Hx711Init(enum hx711_mode mode)
+void hx711_init(enum hx711_mode mode, hx711_evt_handler_t callback)
 {
     ret_code_t ret_code;
+    hx711_callback = callback;
 
     m_mode = mode;
 
@@ -94,7 +81,7 @@ void Hx711Init(enum hx711_mode mode)
     NRF_PPI->CHEN = NRF_PPI->CHEN | 7;
 }
 
-void Hx711Start()
+void hx711_start()
 {
     NRF_LOG_DEBUG("Start sampling");
     
@@ -103,22 +90,21 @@ void Hx711Start()
     nrf_drv_gpiote_in_event_enable(setup.dout_pin, true);
 }
 
-void Hx711Stop()
+void hx711_stop()
 {
     NRF_LOG_DEBUG("Stop sampling");
     nrf_drv_gpiote_in_event_disable(setup.dout_pin);
 }
 
 /* Clocks out HX711 result - if readout fails consistently, try to increase the clock period and/or enable compiler optimization */
-void Hx711Sample()
+void hx711_sample()
 {
-    uint32_t converted_sample;
-
     NRF_TIMER2->TASKS_CLEAR = 1;
     m_sample.count = 0;
     m_sample.value = 0;
     m_sample.status = Busy;
     NRF_TIMER1->TASKS_START = 1; // Starts clock signal on PD_SCK
+    NRF_LOG_INFO("sampling hx711");
 
     for (uint32_t i=0; i < setup.adc_res; i++)
     {
@@ -128,6 +114,7 @@ void Hx711Sample()
             NRF_TIMER2->TASKS_CAPTURE[1] = 1;
             if (NRF_TIMER2->CC[1] >= setup.adc_res)
             {
+                NRF_LOG_INFO("readout not in sync");
                 goto EXIT; // Readout not in sync with PD_CLK. Abort and notify error.
             }
         }
@@ -139,19 +126,40 @@ void Hx711Sample()
     }
     EXIT:
 
-    converted_sample = Hx711Convert(m_sample.value);
+    m_sample.value = hx711_convert(m_sample.value);
     
-    if (converted_sample > 0x7FFFFF)
+    if (m_sample.value > 0x7FFFFF)
     {
         NRF_LOG_DEBUG("Sample returned a negative value. Check connections");
+        return;
     }
     NRF_LOG_DEBUG("Number of bits: %d. ADC val: 0x%x or 0d%d", 
     m_sample.count,
-    converted_sample,
-    converted_sample);
+    m_sample.value,
+    m_sample.value);
+
+    if (hx711_callback != NULL)
+    {
+        hx711_callback(&m_sample.value);
+    }
 }
 
-nrfx_err_t Hx711SampleConvert(uint32_t *p_value)
+/**
+ * @brief Function for converting HX711 sample
+ */
+uint32_t hx711_convert(uint32_t sample)
+{
+    uint32_t converted = (sample << 8) >> 8;
+    if (converted > 0xFFFFFF)
+    {
+        NRF_LOG_INFO("ERROR: converted value greater than possible for 24-bit sample");
+        // TODO: Deal with this
+    }
+
+    return converted;
+}
+
+nrfx_err_t hx711_sample_convert(uint32_t *p_value)
 {
     nrfx_err_t err_code = NRFX_ERROR_INVALID_STATE;
 
@@ -164,12 +172,12 @@ nrfx_err_t Hx711SampleConvert(uint32_t *p_value)
     {        
         if (m_sample.status == Unread)
         {
-            uint32_t converted_sample = Hx711Convert(m_sample.value);
+            uint32_t converted_sample = hx711_convert(m_sample.value);
             *p_value = converted_sample;
             m_sample.status = Read;
             err_code = NRFX_SUCCESS;
         }
-        Hx711Start();
+        hx711_start();
     }
     
     return err_code;

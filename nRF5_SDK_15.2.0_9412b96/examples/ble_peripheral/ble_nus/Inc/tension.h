@@ -3,9 +3,9 @@
 #include "stdint.h"
 #include <nrfx.h>
 #include "ble_nus.h"
+#include "nrf_drv_gpiote.h"
 
-
-typedef uint16_t conn_handle_t;
+typedef void (*hx711_evt_handler_t) (uint32_t* data);
 
 enum hx711_mode
 {
@@ -52,22 +52,25 @@ struct hx711_sample
    enum hx711_sample_status status;
 };
 
+void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
 /**
  * @brief Function for initialising HX711
  * @param[in] mode Set HX711 to sample channel A/B at gain 128/32/64
  */
-void Hx711Init(enum hx711_mode mode);
+void hx711_init(enum hx711_mode mode, hx711_evt_handler_t callback);
 
 /**
  * @brief Function for starting HX711 sampling
  */
-void Hx711Start();
+void hx711_start();
 
 /**
  * @brief Function for starting HX711 sampling
  */
-void Hx711Sample();
+void hx711_sample();
 
+
+uint32_t hx711_convert(uint32_t sample);
 /**
  * @brief Blocking function for executing a single ADC conversion.
  *
@@ -76,4 +79,4 @@ void Hx711Sample();
  * 
  * @param[out] p_value Pointer to the location where the result should be placed.
  */
-nrfx_err_t Hx711SampleConvert(uint32_t *p_value);
+nrfx_err_t hx711_sample_convert(uint32_t *p_value);

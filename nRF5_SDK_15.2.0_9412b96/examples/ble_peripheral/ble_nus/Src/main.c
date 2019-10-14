@@ -167,42 +167,39 @@ static void send_over_nus(uint8_t *data, uint16_t *length)
     }
 }
 
-static void TensionLevelUpdate(void)
+static void nus_update_tension(void)
 {
-    ret_code_t err_code;
-    uint32_t tension_level;
-    // largest value to be sent is 2^23 = 8388608, which is 7 bytes. Add one for EOL character
-    static uint32_t max_n_digits = 8;
-    uint8_t tension[max_n_digits];
-    uint16_t len;
+    hx711_start(); // starts async sampling process
+}
 
-    if (simEnabled)
+void nus_update_tension_callback(uint32_t* tension)
+{
+    static uint16_t max_n_ascii_characters = 1+7; // Byte order: nus tag, seven digits for tension reading
+    uint8_t tension_in_ascii[max_n_ascii_characters];
+
+    NRF_LOG_INFO("Sending tension: %d", *tension);
+
+    if (tension < 0)
     {
-        tension_level = sensorsim_measure(&m_tension_sim_state, &m_tension_sim_cfg);
-        len = uint32_encode(tension_level, tension);
-        NRF_LOG_INFO("Sending tension measurement: %d", *tension);
-
-        err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
-        if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
-        {
-            APP_ERROR_CHECK(err_code);
-        }
+        NRF_LOG_WARNING("Tension should not be negative. Not sent over nus");
+        return;
     }
-    else
+
+    uint32_t temp_tension = *tension;
+    uint16_t count = 1; // at minimum send the nus tag and one digit
+    if (temp_tension == 0)
     {
-        if (Hx711SampleConvert(&tension_level) == NRFX_SUCCESS)
-        {
-            len = (uint16_t) max_n_digits;
-            __itoa(tension_level, (char*) tension, 10);
-            NRF_LOG_INFO("Sending tension measurement: %d of length: %d", tension_level, len);
-
-            err_code = ble_nus_data_send(&m_nus, tension, &len, m_conn_handle);
-            if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
-        }
+        count++; // if tension is already 0, add a byte to represent the "0" digit
     }
+    while (temp_tension != 0)
+    {
+        temp_tension /= 10;
+        count++;
+    }
+
+    tension_in_ascii[0] = NUS_TENSION_TAG;
+    __itoa(*tension, (char*) tension_in_ascii+1, 10);
+    send_over_nus(tension_in_ascii, &count);
 }
 
 /**@brief Function for sending a battery measurement over nus service
@@ -877,7 +874,7 @@ int main(void)
     conn_params_init();
     peer_manager_init();
     battery_adc_init();
-    Hx711Init(INPUT_CH_A_128);
+    hx711_init(INPUT_CH_A_128, nus_update_tension_callback);
     bma_spi_init();
 
     if (debugEnabled)
@@ -905,7 +902,7 @@ int main(void)
         }
         if (tension_level_update_flag)
         {
-            TensionLevelUpdate();
+            nus_update_tension();
             tension_level_update_flag = false;
             tension_level_update_counter++;
             NRF_LOG_INFO("Tension counter: %d", tension_level_update_counter);
