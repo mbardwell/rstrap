@@ -83,7 +83,7 @@ void hx711_init(enum hx711_mode mode, hx711_evt_handler_t callback)
 
 void hx711_start()
 {
-    NRF_LOG_DEBUG("Start sampling");
+    NRF_LOG_DEBUG("start sampling");
     
     NRF_GPIOTE->TASKS_CLR[1] = 1;
     // Generates interrupt when new sampling is available. 
@@ -92,7 +92,7 @@ void hx711_start()
 
 void hx711_stop()
 {
-    NRF_LOG_DEBUG("Stop sampling");
+    NRF_LOG_DEBUG("stop sampling");
     nrf_drv_gpiote_in_event_disable(setup.dout_pin);
 }
 
@@ -130,10 +130,10 @@ void hx711_sample()
     
     if (m_sample.value > 0x7FFFFF)
     {
-        NRF_LOG_DEBUG("Sample returned a negative value. Check connections");
+        NRF_LOG_DEBUG("sample returned a negative value. Check connections");
         return;
     }
-    NRF_LOG_DEBUG("Number of bits: %d. ADC val: 0x%x or 0d%d", 
+    NRF_LOG_DEBUG("number of bits: %d. ADC val: 0x%x or 0d%d", 
     m_sample.count,
     m_sample.value,
     m_sample.value);
@@ -152,7 +152,7 @@ uint32_t hx711_convert(uint32_t sample)
     uint32_t converted = (sample << 8) >> 8;
     if (converted > 0xFFFFFF)
     {
-        NRF_LOG_INFO("ERROR: converted value greater than possible for 24-bit sample");
+        NRF_LOG_INFO("converted value greater than possible for 24-bit sample");
         // TODO: Deal with this
     }
 
@@ -165,7 +165,7 @@ nrfx_err_t hx711_sample_convert(uint32_t *p_value)
 
     if (p_value == NULL)
     {
-        NRF_LOG_INFO("Hx711SampleConvert does not accept null pointers");
+        NRF_LOG_INFO("function does not accept null pointers");
         err_code = NRFX_ERROR_NULL;
     }
     else

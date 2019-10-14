@@ -88,24 +88,24 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+APP_TIMER_DEF(m_accel_timer_id);
+APP_TIMER_DEF(m_battery_timer_id);
 APP_TIMER_DEF(m_temp_timer_id);
 APP_TIMER_DEF(m_tension_timer_id);
-APP_TIMER_DEF(m_battery_timer_id);
-APP_TIMER_DEF(m_accel_timer_id);
 BLE_NUS_DEF(m_nus, 1);
 NRF_BLE_GATT_DEF(m_gatt);
 NRF_BLE_QWR_DEF(m_qwr);             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);
 
-volatile bool battery_level_update_flag = false;
-volatile bool tension_level_update_flag = false;
-volatile bool temp_level_update_flag = false;
 volatile bool accel_level_update_flag = false;
+volatile bool battery_level_update_flag = false;
+volatile bool temp_level_update_flag = false;
+volatile bool tension_level_update_flag = false;
 
-volatile int battery_level_update_counter = 0;
-volatile int tension_level_update_counter = 0;
-volatile int temp_level_update_counter = 0;
 volatile int accel_level_update_counter = 0;
+volatile int battery_level_update_counter = 0;
+volatile int temp_level_update_counter = 0;
+volatile int tension_level_update_counter = 0;
 
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
@@ -166,47 +166,6 @@ static void send_over_nus(uint8_t *data, uint16_t *length)
     }
 }
 
-/**@brief Function for sending a tension measurement over nus service.
- * Starts process where sample is collected and a callback is used
- * to deliver the data to an nus send function
- */
-static void nus_update_tension(void)
-{
-    hx711_start();
-}
-
-
-void nus_update_tension_callback(uint32_t* tension)
-{
-    static uint16_t max_n_ascii_characters = 1+7; // Byte order: nus tag, seven digits for tension reading
-    uint8_t tension_in_ascii[max_n_ascii_characters];
-
-    NRF_LOG_INFO("Sending tension: %d", *tension);
-
-    if (tension < 0)
-    {
-        NRF_LOG_WARNING("Tension should not be negative. Not sent over nus");
-        return;
-    }
-
-    uint32_t temp_tension = *tension;
-    uint16_t count = 1;
-    // at minimum send the nus tag and one digit
-    if (temp_tension == 0)
-    {
-        count++; // if tension is already 0, add a byte to represent the "0" digit
-    }
-    while (temp_tension != 0)
-    {
-        temp_tension /= 10;
-        count++;
-    }
-
-    tension_in_ascii[0] = NUS_TENSION_TAG;
-    __itoa(*tension, (char*) tension_in_ascii+1, 10);
-    send_over_nus(tension_in_ascii, &count);
-}
-
 /**@brief Function for sending a battery measurement over nus service
  */
 static void nus_update_battery_voltage(void)
@@ -257,6 +216,46 @@ static void nus_update_temperature(void)
     send_over_nus(temperature_in_ascii, &max_n_ascii_characters);
 }
 
+/**@brief Function for sending a tension measurement over nus service.
+ * Starts process where sample is collected and a callback is used
+ * to deliver the data to an nus send function
+ */
+static void nus_update_tension(void)
+{
+    hx711_start();
+}
+
+void nus_update_tension_callback(uint32_t* tension)
+{
+    static uint16_t max_n_ascii_characters = 1+7; // Byte order: nus tag, seven digits for tension reading
+    uint8_t tension_in_ascii[max_n_ascii_characters];
+
+    NRF_LOG_INFO("Sending tension: %d", *tension);
+
+    if (tension < 0)
+    {
+        NRF_LOG_WARNING("Tension should not be negative. Not sent over nus");
+        return;
+    }
+
+    uint32_t temp_tension = *tension;
+    uint16_t count = 1;
+    // at minimum send the nus tag and one digit
+    if (temp_tension == 0)
+    {
+        count++; // if tension is already 0, add a byte to represent the "0" digit
+    }
+    while (temp_tension != 0)
+    {
+        temp_tension /= 10;
+        count++;
+    }
+
+    tension_in_ascii[0] = NUS_TENSION_TAG;
+    __itoa(*tension, (char*) tension_in_ascii+1, 10);
+    send_over_nus(tension_in_ascii, &count);
+}
+
 /**@brief Functions for handling the timer timeouts.
  *
  * @details This function will be called each time a timer expires.
@@ -276,16 +275,16 @@ static void battery_timer_timeout_handler(void *p_context)
     battery_level_update_flag = true;
 }
 
-static void tension_timer_timeout_handler(void *p_context)
-{
-    UNUSED_PARAMETER(p_context);
-    tension_level_update_flag = true;
-}
-
 static void temp_timer_timeout_handler(void *p_context)
 {
     UNUSED_PARAMETER(p_context);
     temp_level_update_flag = true;
+}
+
+static void tension_timer_timeout_handler(void *p_context)
+{
+    UNUSED_PARAMETER(p_context);
+    tension_level_update_flag = true;
 }
 
 /**@brief Function for the Timer initialization.
@@ -460,10 +459,10 @@ static void application_timers_start(void)
     err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_start(m_tension_timer_id, TENSION_LEVEL_MEAS_INTERVAL, NULL);
+    err_code = app_timer_start(m_temp_timer_id, TEMP_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_start(m_temp_timer_id, TEMP_LEVEL_MEAS_INTERVAL, NULL);
+    err_code = app_timer_start(m_tension_timer_id, TENSION_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -478,10 +477,10 @@ static void application_timers_stop(void)
     err_code = app_timer_stop(m_battery_timer_id);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_stop(m_tension_timer_id);
+    err_code = app_timer_stop(m_temp_timer_id);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_stop(m_temp_timer_id);
+    err_code = app_timer_stop(m_tension_timer_id);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -880,19 +879,19 @@ int main(void)
 
     for (;;)
     {
+        if (accel_level_update_flag)
+        {
+            bma2x2_data_readout(&m_nus, &m_conn_handle);
+            accel_level_update_flag = false;
+            accel_level_update_counter++;
+            NRF_LOG_INFO("Accel counter: %d", accel_level_update_counter);
+        }
         if (battery_level_update_flag)
         {
             nus_update_battery_voltage();
             battery_level_update_flag = false;
             battery_level_update_counter++;
             NRF_LOG_INFO("Battery counter: %d", battery_level_update_counter);
-        }
-        if (tension_level_update_flag)
-        {
-            nus_update_tension();
-            tension_level_update_flag = false;
-            tension_level_update_counter++;
-            NRF_LOG_INFO("Tension counter: %d", tension_level_update_counter);
         }
         if (temp_level_update_flag)
         {
@@ -901,12 +900,12 @@ int main(void)
             temp_level_update_counter++;
             NRF_LOG_INFO("Temp counter: %d", temp_level_update_counter);
         }
-        if (accel_level_update_flag)
+        if (tension_level_update_flag)
         {
-            bma2x2_data_readout(&m_nus, &m_conn_handle);
-            accel_level_update_flag = false;
-            accel_level_update_counter++;
-            NRF_LOG_INFO("Accel counter: %d", accel_level_update_counter);
+            nus_update_tension();
+            tension_level_update_flag = false;
+            tension_level_update_counter++;
+            NRF_LOG_INFO("Tension counter: %d", tension_level_update_counter);
         }
         idle_state_handle();
     }
