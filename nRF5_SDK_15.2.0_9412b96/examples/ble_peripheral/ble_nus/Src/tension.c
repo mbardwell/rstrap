@@ -14,64 +14,71 @@
 static hx711_evt_handler_t hx711_callback = NULL; 
 static struct hx711_sample m_sample;
 static enum hx711_mode m_mode;
-
-static struct hx711_setup setup = {
-    HX711_PIN_PD_SCK, 
-    HX711_PIN_DOUT,
-    HX711_PIN_VDD,
-    HX711_DEFAULT_TIMER_COUNTERTOP, 
-    HX711_DEFAULT_TIMER_COMPARE,
-    HX711_DEFAULT_ADC_RES
-    };
+struct hx711_setup *m_setup = NULL;
 
 void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    nrf_drv_gpiote_in_event_disable(setup.dout_pin);
-    hx711_sample();
+    if (m_setup != NULL)
+    {
+        nrf_drv_gpiote_in_event_disable(m_setup->dout);
+        hx711_sample();
+    }
+    else
+    {
+        NRF_LOG_WARNING("hx711 setup has not been assigned yet");
+    }
+    
 }
 
-void hx711_init(enum hx711_mode mode, hx711_evt_handler_t callback)
+void hx711_init(enum hx711_mode mode, struct hx711_setup *setup, hx711_evt_handler_t callback)
 {
     ret_code_t ret_code;
     hx711_callback = callback;
-
+    m_setup = setup;
     m_mode = mode;
 
-    nrf_gpio_cfg_output(setup.pd_sck_pin);
-    nrf_gpio_pin_set(setup.pd_sck_pin);
-
-    if (!nrf_drv_gpiote_is_init())
+    if (m_setup != NULL)
     {
-        ret_code = nrf_drv_gpiote_init();
+        nrf_gpio_cfg_output(m_setup->pd_sck);
+        nrf_gpio_pin_set(m_setup->pd_sck);
+
+        if (!nrf_drv_gpiote_is_init())
+        {
+            ret_code = nrf_drv_gpiote_init();
+            APP_ERROR_CHECK(ret_code);
+        }
+
+        nrf_drv_gpiote_in_config_t gpiote_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
+        nrf_gpio_cfg_input(m_setup->dout, NRF_GPIO_PIN_NOPULL);
+        ret_code = nrf_drv_gpiote_in_init(m_setup->dout, &gpiote_config, gpiote_evt_handler);
         APP_ERROR_CHECK(ret_code);
+
+
+        /* Set up timers, gpiote, and ppi for clock signal generation*/
+        NRF_TIMER1->CC[0]     = 1;
+        NRF_TIMER1->CC[1]     = HX711_DEFAULT_TIMER_COMPARE;
+        NRF_TIMER1->CC[2]     = HX711_DEFAULT_TIMER_COUNTERTOP;
+        NRF_TIMER1->SHORTS    = (uint32_t) (1 << 2);    //COMPARE2_CLEAR
+        NRF_TIMER1->PRESCALER = 0;
+
+        NRF_TIMER2->CC[0]     = m_mode;
+        NRF_TIMER2->MODE      = 2;
+
+        NRF_GPIOTE->CONFIG[1] = (uint32_t) (3 | (m_setup->pd_sck << 8) | (1 << 16) | (1 << 20));
+
+        NRF_PPI->CH[0].EEP   = (uint32_t) &NRF_TIMER1->EVENTS_COMPARE[0];
+        NRF_PPI->CH[0].TEP   = (uint32_t) &NRF_GPIOTE->TASKS_SET[1];
+        NRF_PPI->CH[1].EEP   = (uint32_t) &NRF_TIMER1->EVENTS_COMPARE[1];
+        NRF_PPI->CH[1].TEP   = (uint32_t) &NRF_GPIOTE->TASKS_CLR[1];
+        NRF_PPI->FORK[1].TEP = (uint32_t) &NRF_TIMER2->TASKS_COUNT; // Increment on falling edge
+        NRF_PPI->CH[2].EEP   = (uint32_t) &NRF_TIMER2->EVENTS_COMPARE[0];
+        NRF_PPI->CH[2].TEP   = (uint32_t) &NRF_TIMER1->TASKS_SHUTDOWN;
+        NRF_PPI->CHEN = NRF_PPI->CHEN | 7;
     }
-
-    nrf_drv_gpiote_in_config_t gpiote_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
-    nrf_gpio_cfg_input(setup.dout_pin, NRF_GPIO_PIN_NOPULL);
-    ret_code = nrf_drv_gpiote_in_init(setup.dout_pin, &gpiote_config, gpiote_evt_handler);
-    APP_ERROR_CHECK(ret_code);
-
-
-    /* Set up timers, gpiote, and ppi for clock signal generation*/
-    NRF_TIMER1->CC[0]     = 1;
-    NRF_TIMER1->CC[1]     = setup.timer_compare;
-    NRF_TIMER1->CC[2]     = setup.timer_countertop;
-    NRF_TIMER1->SHORTS    = (uint32_t) (1 << 2);    //COMPARE2_CLEAR
-    NRF_TIMER1->PRESCALER = 0;
-
-    NRF_TIMER2->CC[0]     = m_mode;
-    NRF_TIMER2->MODE      = 2;
-
-    NRF_GPIOTE->CONFIG[1] = (uint32_t) (3 | (setup.pd_sck_pin << 8) | (1 << 16) | (1 << 20));
-
-    NRF_PPI->CH[0].EEP   = (uint32_t) &NRF_TIMER1->EVENTS_COMPARE[0];
-    NRF_PPI->CH[0].TEP   = (uint32_t) &NRF_GPIOTE->TASKS_SET[1];
-    NRF_PPI->CH[1].EEP   = (uint32_t) &NRF_TIMER1->EVENTS_COMPARE[1];
-    NRF_PPI->CH[1].TEP   = (uint32_t) &NRF_GPIOTE->TASKS_CLR[1];
-    NRF_PPI->FORK[1].TEP = (uint32_t) &NRF_TIMER2->TASKS_COUNT; // Increment on falling edge
-    NRF_PPI->CH[2].EEP   = (uint32_t) &NRF_TIMER2->EVENTS_COMPARE[0];
-    NRF_PPI->CH[2].TEP   = (uint32_t) &NRF_TIMER1->TASKS_SHUTDOWN;
-    NRF_PPI->CHEN = NRF_PPI->CHEN | 7;
+    else
+    {
+        NRF_LOG_WARNING("hx711 setup has not been assigned yet");
+    }
 }
 
 void hx711_start()
@@ -80,13 +87,13 @@ void hx711_start()
     
     NRF_GPIOTE->TASKS_CLR[1] = 1;
     // Generates interrupt when new sampling is available. 
-    nrf_drv_gpiote_in_event_enable(setup.dout_pin, true);
+    nrf_drv_gpiote_in_event_enable(m_setup->dout, true);
 }
 
 void hx711_stop()
 {
     NRF_LOG_DEBUG("stop sampling");
-    nrf_drv_gpiote_in_event_disable(setup.dout_pin);
+    nrf_drv_gpiote_in_event_disable(m_setup->dout);
 }
 
 /* Clocks out HX711 result - if readout fails consistently, try to increase the clock period and/or enable compiler optimization */
@@ -99,13 +106,13 @@ void hx711_sample()
     NRF_TIMER1->TASKS_START = 1; // Starts clock signal on PD_SCK
     NRF_LOG_INFO("sampling hx711");
 
-    for (uint32_t i=0; i < setup.adc_res; i++)
+    for (uint32_t i=0; i < HX711_DEFAULT_ADC_RES; i++)
     {
         do
         {
             /* NRF_TIMER->CC[1] contains number of clock cycles.*/
             NRF_TIMER2->TASKS_CAPTURE[1] = 1;
-            if (NRF_TIMER2->CC[1] >= setup.adc_res)
+            if (NRF_TIMER2->CC[1] >= HX711_DEFAULT_ADC_RES)
             {
                 NRF_LOG_WARNING("readout not in sync");
                 goto EXIT; // Readout not in sync with PD_CLK. Abort and notify error.
@@ -113,7 +120,7 @@ void hx711_sample()
         }
         while(NRF_TIMER1->EVENTS_COMPARE[0] == 0);
         NRF_TIMER1->EVENTS_COMPARE[0] = 0;
-        m_sample.value |= (nrf_gpio_pin_read(setup.dout_pin) << (23 - i));
+        m_sample.value |= (nrf_gpio_pin_read(m_setup->dout) << (23 - i));
         m_sample.count++;
         m_sample.status = Unread;
     }

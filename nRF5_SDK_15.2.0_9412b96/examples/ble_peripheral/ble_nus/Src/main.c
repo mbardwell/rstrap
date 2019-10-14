@@ -868,7 +868,12 @@ int main(void)
     conn_params_init();
     peer_manager_init();
     battery_adc_init();
-    hx711_init(INPUT_CH_A_128, nus_update_tension_callback);
+    static struct hx711_setup setup = {
+        HX711_PIN_PD_SCK, 
+        HX711_PIN_DOUT,
+        HX711_PIN_VDD
+    };
+    hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback);
     bma_spi_init();
 
     #ifdef DEBUG
