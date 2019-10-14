@@ -91,7 +91,7 @@
 APP_TIMER_DEF(m_temp_timer_id);
 APP_TIMER_DEF(m_tension_timer_id);
 APP_TIMER_DEF(m_battery_timer_id);
-APP_TIMER_DEF(m_accelerometer_timer_id);
+APP_TIMER_DEF(m_accel_timer_id);
 BLE_NUS_DEF(m_nus, 1);
 NRF_BLE_GATT_DEF(m_gatt);
 NRF_BLE_QWR_DEF(m_qwr);             /**< Context for the Queued Write module.*/
@@ -264,7 +264,13 @@ static void nus_update_temperature(void)
  * @param[in] p_context   Pointer used for passing some arbitrary information (context) from the
  *                        app_start_timer() call to the timeout handler.
  */
-static void battery_level_meas_timeout_handler(void *p_context)
+static void accel_timer_timeout_handler(void *p_context)
+{
+    UNUSED_PARAMETER(p_context);
+    accel_level_update_flag = true;
+}
+
+static void battery_timer_timeout_handler(void *p_context)
 {
     UNUSED_PARAMETER(p_context);
     battery_level_update_flag = true;
@@ -280,7 +286,6 @@ static void temp_timer_timeout_handler(void *p_context)
 {
     UNUSED_PARAMETER(p_context);
     temp_level_update_flag = true;
-    accel_level_update_flag = true;
 }
 
 /**@brief Function for the Timer initialization.
@@ -296,9 +301,14 @@ static void timers_init(void)
     APP_ERROR_CHECK(err_code);
 
     // Create timers.
+    err_code = app_timer_create(&m_accel_timer_id,
+                                APP_TIMER_MODE_REPEATED,
+                                accel_timer_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+
     err_code = app_timer_create(&m_battery_timer_id,
                                 APP_TIMER_MODE_REPEATED,
-                                battery_level_meas_timeout_handler);
+                                battery_timer_timeout_handler);
     APP_ERROR_CHECK(err_code);
 
     err_code = app_timer_create(&m_tension_timer_id,
@@ -400,7 +410,6 @@ static void services_init(void)
     ret_code_t err_code;
     ble_dis_init_t dis_init;
     nrf_ble_qwr_init_t qwr_init = {0};
-    ble_dis_sys_id_t sys_id;
     ble_nus_init_t nus_init;
 
     // Initialize Queued Write Module.
@@ -414,10 +423,6 @@ static void services_init(void)
 
     ble_srv_ascii_to_utf8(&dis_init.manufact_name_str, MANUFACTURER_NAME);
     ble_srv_ascii_to_utf8(&dis_init.model_num_str, MODEL_NUM);
-
-    sys_id.manufacturer_id = MANUFACTURER_ID;
-    sys_id.organizationally_unique_id = ORG_UNIQUE_ID;
-    dis_init.p_sys_id = &sys_id;
 
     dis_init.dis_char_rd_sec = SEC_OPEN;
 
@@ -449,6 +454,9 @@ static void application_timers_start(void)
     ret_code_t err_code;
 
     // Start application timers.
+    err_code = app_timer_start(m_accel_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
+    APP_ERROR_CHECK(err_code);
+
     err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 
@@ -464,6 +472,9 @@ static void application_timers_stop(void)
     ret_code_t err_code;
 
     // Start application timers.
+    err_code = app_timer_stop(m_accel_timer_id);
+    APP_ERROR_CHECK(err_code);
+
     err_code = app_timer_stop(m_battery_timer_id);
     APP_ERROR_CHECK(err_code);
 

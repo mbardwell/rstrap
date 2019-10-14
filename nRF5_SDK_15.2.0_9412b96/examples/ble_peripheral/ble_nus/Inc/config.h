@@ -19,11 +19,9 @@
 #define NUS_TEMP_TAG            0x2
 #define NUS_TENSION_TAG         0x3
 
-#define DEVICE_NAME "Nordic_HTS"                /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME "NordicSemiconductor" /**< Manufacturer. Will be passed to Device Information Service. */
-#define MODEL_NUM "NS-HTS-EXAMPLE"              /**< Model number. Will be passed to Device Information Service. */
-#define MANUFACTURER_ID 0x1122334455            /**< Manufacturer ID, part of System ID. Will be passed to Device Information Service. */
-#define ORG_UNIQUE_ID 0x667788                  /**< Organizational Unique ID, part of System ID. Will be passed to Device Information Service. */
+#define DEVICE_NAME "rStrap"                    /**< Name of device. Will be included in the advertising data. */
+#define MANUFACTURER_NAME "Route7"              /**< Manufacturer. Will be passed to Device Information Service. */
+#define MODEL_NUM "prototype-v1"                /**< Model number. Will be passed to Device Information Service. */
 
 #define APP_BLE_OBSERVER_PRIO 3 /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG 1  /**< A tag identifying the SoftDevice BLE configuration. */
