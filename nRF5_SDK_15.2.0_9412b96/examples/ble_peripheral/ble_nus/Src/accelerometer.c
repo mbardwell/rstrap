@@ -2,7 +2,10 @@
 #include "bma2x2.h" 
 #include "nrf_drv_spi.h"
 #include "nrf_delay.h"
+#include "config.h"
 
+#define BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE	0x7F
+#define BMA2x2_SPI_BUS_READ_CONTROL_BYTE	0x80
 #define SPI_INSTANCE 0
 
 static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
@@ -10,20 +13,6 @@ struct bma2x2_t bma2x2;
 static volatile bool spi_xfer_done;
 
 
-#define BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE	0x7F
-#define BMA2x2_SPI_BUS_READ_CONTROL_BYTE	0x80
-
-#ifdef DEVKIT
-    #define BMA_SPI_SS_PIN 19
-    #define BMA_SPI_MISO_PIN 23
-    #define BMA_SPI_MOSI_PIN 22
-    #define BMA_SPI_SCK_PIN 20
-#else
-    #define BMA_SPI_SS_PIN 17
-    #define BMA_SPI_MISO_PIN 8
-    #define BMA_SPI_MOSI_PIN 6
-    #define BMA_SPI_SCK_PIN 15
-#endif
 
 void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
                        void *                    p_context)

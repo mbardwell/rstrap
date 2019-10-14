@@ -5,30 +5,23 @@
 #include "nrf_log.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_gpiote.h"
+#include "config.h"
+
+#define HX711_DEFAULT_TIMER_COUNTERTOP 32
+#define HX711_DEFAULT_TIMER_COMPARE 16
+#define HX711_DEFAULT_ADC_RES 24
 
 static hx711_evt_handler_t hx711_callback = NULL; 
 static struct hx711_sample m_sample;
 static enum hx711_mode m_mode;
-#ifdef DEVKIT
-    #define PIN_PD_SCK 2
-    #define PIN_DOUT 26
-    #define PIN_VDD 27
-#else
-    #define PIN_PD_SCK 7
-    #define PIN_DOUT 5
-    #define PIN_VDD 4
-#endif
-#define DEFAULT_TIMER_COUNTERTOP 32
-#define DEFAULT_TIMER_COMPARE 16
-#define DEFAULT_ADC_RES 24
+
 static struct hx711_setup setup = {
-    PIN_PD_SCK, 
-    PIN_DOUT,
-    BT832_VDD,
-    PIN_VDD,
-    DEFAULT_TIMER_COUNTERTOP, 
-    DEFAULT_TIMER_COMPARE,
-    DEFAULT_ADC_RES
+    HX711_PIN_PD_SCK, 
+    HX711_PIN_DOUT,
+    HX711_PIN_VDD,
+    HX711_DEFAULT_TIMER_COUNTERTOP, 
+    HX711_DEFAULT_TIMER_COMPARE,
+    HX711_DEFAULT_ADC_RES
     };
 
 void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)

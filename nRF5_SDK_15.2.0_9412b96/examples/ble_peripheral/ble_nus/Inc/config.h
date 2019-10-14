@@ -2,6 +2,28 @@
 
 #include <stdbool.h>
 
+#ifdef DEVKIT
+    #define BMA_SPI_SS_PIN 19
+    #define BMA_SPI_MISO_PIN 23
+    #define BMA_SPI_MOSI_PIN 22
+    #define BMA_SPI_SCK_PIN 20
+#else
+    #define BMA_SPI_SS_PIN 17
+    #define BMA_SPI_MISO_PIN 8
+    #define BMA_SPI_MOSI_PIN 6
+    #define BMA_SPI_SCK_PIN 15
+#endif
+
+#ifdef DEVKIT
+    #define HX711_PIN_PD_SCK 2
+    #define HX711_PIN_DOUT 26
+    #define HX711_PIN_VDD 27
+#else
+    #define HX711_PIN_PD_SCK 7
+    #define HX711_PIN_DOUT 5
+    #define HX711_PIN_VDD 4
+#endif
+
 #define NUS_ACCEL_TAG			0x0
 #define NUS_BATTERY_TAG			0x1
 #define NUS_TEMP_TAG            0x2
