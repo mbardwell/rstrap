@@ -44,9 +44,9 @@
  * @ingroup ble_sdk_app_hts
  * @brief Health Thermometer Service Sample Application main file.
  *
- * This file contains the source code for a sample application using the Health Thermometer service
- * It also includes the sample code for Battery and Device Information services.
- * This application uses the @ref srvlib_conn_params module.
+ * This file contains the source code for an application using the device information service 
+ * and Nordic UART service (NUS).
+ * 
  */
 
 #include "stdint.h"
@@ -88,13 +88,14 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-APP_TIMER_DEF(m_temp_timer_id);      // Health thermometer service timer
-APP_TIMER_DEF(m_tension_timer_id);  // Tension timer
-APP_TIMER_DEF(m_battery_timer_id);  /**< Battery timer. */
-BLE_NUS_DEF(m_nus, 1);              // Nordic UART Service structure
-NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
+APP_TIMER_DEF(m_temp_timer_id);
+APP_TIMER_DEF(m_tension_timer_id);
+APP_TIMER_DEF(m_battery_timer_id);
+APP_TIMER_DEF(m_accelerometer_timer_id);
+BLE_NUS_DEF(m_nus, 1);
+NRF_BLE_GATT_DEF(m_gatt);
 NRF_BLE_QWR_DEF(m_qwr);             /**< Context for the Queued Write module.*/
-BLE_ADVERTISING_DEF(m_advertising); /**< Advertising module instance. */
+BLE_ADVERTISING_DEF(m_advertising);
 
 volatile bool battery_level_update_flag = false;
 volatile bool tension_level_update_flag = false;
@@ -106,13 +107,11 @@ volatile int tension_level_update_counter = 0;
 volatile int temp_level_update_counter = 0;
 volatile int accel_level_update_counter = 0;
 
-static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
+static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
-static sensorsim_cfg_t m_tension_sim_cfg;                // Tension sensor simulator configuration
-static sensorsim_state_t m_tension_sim_state;            // Tension sensor simulator state
+static sensorsim_cfg_t m_tension_sim_cfg;
+static sensorsim_state_t m_tension_sim_state;
 
-/* Not enough bytes left for us to include the NUS service in 
-   the adv packet; once we connect the NUS is visible. */
 static ble_uuid_t m_adv_uuids[] = /**< Universally unique service identifiers. */
     {{BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}};
 
@@ -167,10 +166,15 @@ static void send_over_nus(uint8_t *data, uint16_t *length)
     }
 }
 
+/**@brief Function for sending a tension measurement over nus service.
+ * Starts process where sample is collected and a callback is used
+ * to deliver the data to an nus send function
+ */
 static void nus_update_tension(void)
 {
-    hx711_start(); // starts async sampling process
+    hx711_start();
 }
+
 
 void nus_update_tension_callback(uint32_t* tension)
 {
@@ -186,7 +190,8 @@ void nus_update_tension_callback(uint32_t* tension)
     }
 
     uint32_t temp_tension = *tension;
-    uint16_t count = 1; // at minimum send the nus tag and one digit
+    uint16_t count = 1;
+    // at minimum send the nus tag and one digit
     if (temp_tension == 0)
     {
         count++; // if tension is already 0, add a byte to represent the "0" digit
@@ -387,11 +392,8 @@ static void nus_data_handler(ble_nus_evt_t *p_evt)
     {
     }
 }
-/**@snippet [Handling the data received over BLE] */
 
-/**@brief Function for initializing services that will be used by the application.
- *
- * @details Initialize the Health Thermometer, Battery and Device Information services.
+/**@brief Function for initializing bluetooth services
  */
 static void services_init(void)
 {
@@ -432,8 +434,6 @@ static void services_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for initializing the sensor simulators.
- */
 static void sensor_simulator_init(void)
 {
     m_tension_sim_cfg.min = 5000;
@@ -444,8 +444,6 @@ static void sensor_simulator_init(void)
     sensorsim_init(&m_tension_sim_state, &m_tension_sim_cfg);
 }
 
-/**@brief Function for starting application timers.
- */
 static void application_timers_start(void)
 {
     ret_code_t err_code;
@@ -461,8 +459,6 @@ static void application_timers_start(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for stopping application timers.
- */
 static void application_timers_stop(void)
 {
     ret_code_t err_code;
@@ -499,17 +495,11 @@ static void on_conn_params_evt(ble_conn_params_evt_t *p_evt)
     }
 }
 
-/**@brief Function for handling a Connection Parameters error.
- *
- * @param[in] nrf_error  Error code containing information about what went wrong.
- */
 static void conn_params_error_handler(uint32_t nrf_error)
 {
     APP_ERROR_HANDLER(nrf_error);
 }
 
-/**@brief Function for initializing the Connection Parameters module.
- */
 static void conn_params_init(void)
 {
     ret_code_t err_code;
@@ -530,10 +520,6 @@ static void conn_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for putting the chip into sleep mode.
- *
- * @note This function will not return.
- */
 static void sleep_mode_enter(void)
 {
     ret_code_t err_code;
@@ -714,8 +700,6 @@ static void bsp_event_handler(bsp_event_t event)
     }
 }
 
-/**@brief Function for the Peer Manager initialization.
- */
 static void peer_manager_init(void)
 {
     ble_gap_sec_params_t sec_param;
@@ -817,8 +801,6 @@ static void log_init(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 }
 
-/**@brief Function for initializing power management.
- */
 static void power_management_init(void)
 {
     ret_code_t err_code;
@@ -838,11 +820,9 @@ static void idle_state_handle(void)
     }
 }
 
-/**@brief Function for starting advertising.
- */
 static void advertising_start(bool erase_bonds)
 {
-    if (erase_bonds == true)
+    if (erase_bonds)
     {
         delete_bonds();
         // Advertising is started by PM_EVT_PEERS_DELETE_SUCCEEDED event.
@@ -854,8 +834,6 @@ static void advertising_start(bool erase_bonds)
     }
 }
 
-/**@brief Function for application main entry.
- */
 int main(void)
 {
     bool erase_bonds;
@@ -886,11 +864,9 @@ int main(void)
         NRF_LOG_INFO("This is a simulated build!!");
     }
 
-    // Start execution.
     NRF_LOG_INFO("Health Thermometer example started.");
     advertising_start(erase_bonds);
 
-    // Enter main loop.
     for (;;)
     {
         if (battery_level_update_flag)
@@ -924,7 +900,3 @@ int main(void)
         idle_state_handle();
     }
 }
-
-/**
- * @}
- */
