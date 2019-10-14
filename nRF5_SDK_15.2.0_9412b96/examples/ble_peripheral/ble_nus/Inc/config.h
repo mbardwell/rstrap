@@ -24,10 +24,12 @@
     #define HX711_PIN_VDD 4
 #endif
 
-#define NUS_ACCEL_TAG			0x0
-#define NUS_BATTERY_TAG			0x1
-#define NUS_TEMP_TAG            0x2
-#define NUS_TENSION_TAG         0x3
+#define NUS_ACCEL_X_TAG			0x0
+#define NUS_ACCEL_Y_TAG			0x1
+#define NUS_ACCEL_Z_TAG			0x2
+#define NUS_BATTERY_TAG			0x3
+#define NUS_TEMP_TAG            0x4
+#define NUS_TENSION_TAG         0x5
 
 #define DEVICE_NAME "rStrap"                    /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME "Route7"              /**< Manufacturer. Will be passed to Device Information Service. */

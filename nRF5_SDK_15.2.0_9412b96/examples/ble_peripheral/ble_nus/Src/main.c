@@ -157,6 +157,31 @@ static void pm_evt_handler(pm_evt_t const *p_evt)
     }
 }
 
+static uint16_t number_of_digits(uint16_t number)
+{
+    uint16_t count = 1;
+
+    while (number >= 10)
+    {
+        number /= 10;
+        count++;
+    }
+    return count;
+}
+
+static void prepare_accel_for_nus(int16_t number, uint8_t *sample_in_ascii, uint8_t nus_tag)
+{
+    uint32_t sign = 0x2B; // sign is default "+" in ascii
+
+    if (number < 0)
+    {
+        sign = 0x2D;
+    }
+    sample_in_ascii[0] = nus_tag;
+    sample_in_ascii[1] = sign;
+    __itoa(abs(number), (char*) sample_in_ascii+2, 10);
+}
+
 static void send_over_nus(uint8_t *data, uint16_t *length)
 {
     ret_code_t err_code;
@@ -171,13 +196,25 @@ static void send_over_nus(uint8_t *data, uint16_t *length)
  */
 static void nus_update_accel(void)
 {
+    struct bma_xyz_sample sample;
+    uint16_t max_n_ascii_characters = 1+1+5; // Byte order: nus tag, sign (+/-), five digits for accel
+    uint8_t sample_in_ascii[max_n_ascii_characters];
+    uint16_t actual_number_of_digits;
 
-    bma2x2_data_readout(&m_nus, &m_conn_handle);
-}
+    bma2x2_sample(&sample);
+    NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", sample.x, sample.y, sample.z);
 
-void nus_update_accel_callback(uint32_t* tension)
-{
+    prepare_accel_for_nus(sample.x, sample_in_ascii, NUS_ACCEL_X_TAG);
+    actual_number_of_digits = number_of_digits(abs(sample.x)) + 2; // two for NUS_TAG and sign byte
+    send_over_nus(sample_in_ascii, &actual_number_of_digits);
 
+    prepare_accel_for_nus(sample.y, sample_in_ascii, NUS_ACCEL_Y_TAG);
+    actual_number_of_digits = number_of_digits(abs(sample.y)) + 2;
+    send_over_nus(sample_in_ascii, &actual_number_of_digits);
+
+    prepare_accel_for_nus(sample.z, sample_in_ascii, NUS_ACCEL_Z_TAG);
+    actual_number_of_digits = number_of_digits(abs(sample.z)) + 2;
+    send_over_nus(sample_in_ascii, &actual_number_of_digits);
 }
 
 static void nus_update_battery_voltage(void)
@@ -874,7 +911,14 @@ int main(void)
         HX711_PIN_VDD
     };
     hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback);
-    bma_spi_init();
+    nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
+    spi_config.ss_pin   = BMA_SPI_SS_PIN;
+    spi_config.miso_pin = BMA_SPI_MISO_PIN;
+    spi_config.mosi_pin = BMA_SPI_MOSI_PIN;
+    spi_config.sck_pin  = BMA_SPI_SCK_PIN;
+    spi_config.mode = NRF_DRV_SPI_MODE_3;
+    spi_config.bit_order = NRF_SPI_BIT_ORDER_MSB_FIRST;
+    bma_spi_init(&spi_config);
 
     #ifdef DEBUG
         NRF_LOG_INFO("this is a debug build!!");

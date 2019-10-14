@@ -12,24 +12,15 @@ static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
 struct bma2x2_t bma2x2;
 static volatile bool spi_xfer_done;
 
-
-
 void spi_event_handler(nrf_drv_spi_evt_t const * p_event,
                        void *                    p_context)
 {
     spi_xfer_done = true;
 }
 
-void bma_spi_init()
+void bma_spi_init(nrf_drv_spi_config_t *spi_config)
 {
-    nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
-    spi_config.ss_pin   = BMA_SPI_SS_PIN;
-    spi_config.miso_pin = BMA_SPI_MISO_PIN;
-    spi_config.mosi_pin = BMA_SPI_MOSI_PIN;
-    spi_config.sck_pin  = BMA_SPI_SCK_PIN;
-    spi_config.mode = NRF_DRV_SPI_MODE_3;
-    spi_config.bit_order = NRF_SPI_BIT_ORDER_MSB_FIRST;
-    APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, spi_event_handler, NULL));
+    APP_ERROR_CHECK(nrf_drv_spi_init(&spi, spi_config, spi_event_handler, NULL));
 
     bma2x2.chip_id = BMA2x2_INIT_VALUE;
     bma2x2.bus_write = &bma_spi_write;
@@ -45,6 +36,19 @@ void bma_spi_init()
     {
         NRF_LOG_INFO("BMA initialisation failed. Received chip id: %x", bma2x2.chip_id);
     }
+
+    s32 com_rslt = NO_ERROR;
+    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_NORMAL);
+    u8 bw_value_u8 = 0x08;/* set bandwidth of 7.81Hz*/
+	com_rslt += bma2x2_set_bw(bw_value_u8);
+    BMA_ERROR_CHECK(com_rslt);
+}
+
+void bma_spi_deinit(nrf_drv_spi_config_t *spi_config)
+{
+    s32 com_rslt = NO_ERROR;
+    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_DEEP_SUSPEND);
+    BMA_ERROR_CHECK(com_rslt);
 }
 
 s8 bma_spi_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
@@ -95,67 +99,11 @@ void spi_delay(u32 millis_time)
     nrf_delay_ms(millis_time);
 }
 
-
-
-
-void send_accel_over_uart(s16 x, s16 y, s16 z, ble_nus_t* m_nus, uint16_t* m_conn_handle)
+void bma2x2_sample(struct bma_xyz_sample *sample)
 {
-    ret_code_t err_code;
-    static uint16_t max_n_digits = 3; // accel is 16-bit measurement. Add byte for EOL char
-    uint8_t accel_x[max_n_digits];
-    uint8_t accel_y[max_n_digits];
-    uint8_t accel_z[max_n_digits];
-
-    uint16_big_encode((u16) x, accel_x);
-    uint16_big_encode((u16) y, accel_y);
-    uint16_big_encode((u16) z, accel_z);
-
-    err_code = ble_nus_data_send(m_nus, accel_x, &max_n_digits, *m_conn_handle);
-    err_code = ble_nus_data_send(m_nus, accel_y, &max_n_digits, *m_conn_handle);
-    err_code = ble_nus_data_send(m_nus, accel_z, &max_n_digits, *m_conn_handle);
-
-    if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
-    {
-        APP_ERROR_CHECK(err_code);
-    }
-}
-
-
-
-
-s32 bma2x2_data_readout(ble_nus_t* nus, uint16_t* handler)
-{
-	/*Local variables for reading accel x, y and z data*/
-	s16	accel_x_s16, accel_y_s16, accel_z_s16 = BMA2x2_INIT_VALUE;
-	/* Local variable used to assign the bandwidth value*/
-	u8 bw_value_u8 = BMA2x2_INIT_VALUE;
-	/* Local variable used to set the bandwidth value*/
-	u8 banwid = BMA2x2_INIT_VALUE;
-	/* status of communication*/
-	s32 com_rslt = NO_ERROR;
-
-    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_NORMAL);
-
-
-    bw_value_u8 = 0x08;/* set bandwidth of 7.81Hz*/
-	com_rslt += bma2x2_set_bw(bw_value_u8);
-
-	/* This API used to read back the written value of bandwidth*/
-	com_rslt += bma2x2_get_bw(&banwid);
-
-   	/* Read the accel X data*/
-	com_rslt += bma2x2_read_accel_x(&accel_x_s16);
-	/* Read the accel Y data*/
-	com_rslt += bma2x2_read_accel_y(&accel_y_s16);
-	/* Read the accel Z data*/
-	com_rslt += bma2x2_read_accel_z(&accel_z_s16);
-    NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", accel_x_s16, accel_y_s16, accel_y_s16);
-
-    com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_DEEP_SUSPEND);
-
+    s32 com_rslt = NO_ERROR;
+	com_rslt += bma2x2_read_accel_x(&sample->x);
+	com_rslt += bma2x2_read_accel_y(&sample->y);
+	com_rslt += bma2x2_read_accel_z(&sample->z);
     BMA_ERROR_CHECK(com_rslt);
-
-    send_accel_over_uart(accel_x_s16, accel_y_s16, accel_z_s16, nus, handler);
-        
-    return com_rslt;
 }
