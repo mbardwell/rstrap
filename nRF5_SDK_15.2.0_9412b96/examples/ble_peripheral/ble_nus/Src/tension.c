@@ -114,7 +114,7 @@ void hx711_sample()
             NRF_TIMER2->TASKS_CAPTURE[1] = 1;
             if (NRF_TIMER2->CC[1] >= setup.adc_res)
             {
-                NRF_LOG_INFO("readout not in sync");
+                NRF_LOG_WARNING("readout not in sync");
                 goto EXIT; // Readout not in sync with PD_CLK. Abort and notify error.
             }
         }
@@ -130,7 +130,7 @@ void hx711_sample()
     
     if (m_sample.value > 0x7FFFFF)
     {
-        NRF_LOG_DEBUG("sample returned a negative value. Check connections");
+        NRF_LOG_WARNING("sample returned a negative value. Check connections");
         return;
     }
     NRF_LOG_DEBUG("number of bits: %d. ADC val: 0x%x or 0d%d", 
@@ -152,7 +152,7 @@ uint32_t hx711_convert(uint32_t sample)
     uint32_t converted = (sample << 8) >> 8;
     if (converted > 0xFFFFFF)
     {
-        NRF_LOG_INFO("converted value greater than possible for 24-bit sample");
+        NRF_LOG_WARNING("converted value greater than possible for 24-bit sample");
         // TODO: Deal with this
     }
 
@@ -165,7 +165,7 @@ nrfx_err_t hx711_sample_convert(uint32_t *p_value)
 
     if (p_value == NULL)
     {
-        NRF_LOG_INFO("function does not accept null pointers");
+        NRF_LOG_WARNING("function does not accept null pointers");
         err_code = NRFX_ERROR_NULL;
     }
     else

@@ -166,8 +166,19 @@ static void send_over_nus(uint8_t *data, uint16_t *length)
     }
 }
 
-/**@brief Function for sending a battery measurement over nus service
+/**@brief Functions for sending a sensor measurements over nus service
  */
+static void nus_update_accel(void)
+{
+
+    bma2x2_data_readout(&m_nus, &m_conn_handle);
+}
+
+void nus_update_accel_callback(uint32_t* tension)
+{
+
+}
+
 static void nus_update_battery_voltage(void)
 {
     int16_t voltage;
@@ -175,11 +186,11 @@ static void nus_update_battery_voltage(void)
     uint8_t voltage_in_ascii[max_n_ascii_characters];
 
     battery_level_in_mv(&voltage);
-    NRF_LOG_INFO("Sending battery voltage in mV: %d", voltage);
+    NRF_LOG_INFO("sending battery voltage in mV: %d", voltage);
 
     if (voltage > 9999 || voltage < 1000)
     {
-        NRF_LOG_WARNING("Voltage outside of 4 digit bound. Not sent over nus");
+        NRF_LOG_WARNING("voltage outside of 4 digit bound. Not sent over nus");
         return;
     }
 
@@ -188,8 +199,6 @@ static void nus_update_battery_voltage(void)
     send_over_nus(voltage_in_ascii, &max_n_ascii_characters);
 }
 
-/**@brief Function for sending one temperature measurement over nus service.
- */
 static void nus_update_temperature(void)
 {
     static int32_t temperature;
@@ -198,10 +207,10 @@ static void nus_update_temperature(void)
     uint8_t temperature_in_ascii[max_n_ascii_characters];
 
     temperature_sample(&temperature); // returns temperature in celcius
-    NRF_LOG_INFO("Sending temperature measurement: %d", temperature);
+    NRF_LOG_INFO("sending temperature measurement: %d", temperature);
     if (temperature > 99 || temperature < -99)
     {
-        NRF_LOG_WARNING("Temperature exceeds two-digit bound. Not sent over nus");
+        NRF_LOG_WARNING("temperature exceeds two-digit bound. Not sent over nus");
         return;
     }
     else if (temperature < 0)
@@ -216,10 +225,6 @@ static void nus_update_temperature(void)
     send_over_nus(temperature_in_ascii, &max_n_ascii_characters);
 }
 
-/**@brief Function for sending a tension measurement over nus service.
- * Starts process where sample is collected and a callback is used
- * to deliver the data to an nus send function
- */
 static void nus_update_tension(void)
 {
     hx711_start();
@@ -230,11 +235,11 @@ void nus_update_tension_callback(uint32_t* tension)
     static uint16_t max_n_ascii_characters = 1+7; // Byte order: nus tag, seven digits for tension reading
     uint8_t tension_in_ascii[max_n_ascii_characters];
 
-    NRF_LOG_INFO("Sending tension: %d", *tension);
+    NRF_LOG_INFO("sending tension: %d", *tension);
 
     if (tension < 0)
     {
-        NRF_LOG_WARNING("Tension should not be negative. Not sent over nus");
+        NRF_LOG_WARNING("tension should not be negative. Not sent over nus");
         return;
     }
 
@@ -359,7 +364,7 @@ void gatt_evt_handler(nrf_ble_gatt_t *p_gatt, nrf_ble_gatt_evt_t const *p_evt)
     if ((m_conn_handle == p_evt->conn_handle) && (p_evt->evt_id == NRF_BLE_GATT_EVT_ATT_MTU_UPDATED))
     {
         m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
-        NRF_LOG_INFO("Data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
+        NRF_LOG_INFO("data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
     }
     NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
                   p_gatt->att_mtu_desired_central,
@@ -559,7 +564,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     switch (ble_adv_evt)
     {
     case BLE_ADV_EVT_FAST:
-        NRF_LOG_INFO("Fast advertising.");
+        NRF_LOG_INFO("fast advertising.");
         err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
         APP_ERROR_CHECK(err_code);
         break;
@@ -585,7 +590,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
     switch (p_ble_evt->header.evt_id)
     {
     case BLE_GAP_EVT_CONNECTED:
-        NRF_LOG_INFO("Connected.");
+        NRF_LOG_INFO("connected.");
         err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
         APP_ERROR_CHECK(err_code);
         m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
@@ -597,7 +602,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
         break;
 
     case BLE_GAP_EVT_DISCONNECTED:
-        NRF_LOG_INFO("Disconnected.");
+        NRF_LOG_INFO("disconnected.");
         m_conn_handle = BLE_CONN_HANDLE_INVALID;
         application_timers_stop();
         break;
@@ -747,7 +752,7 @@ static void delete_bonds(void)
 {
     ret_code_t err_code;
 
-    NRF_LOG_INFO("Erase bonds!");
+    NRF_LOG_INFO("erase bonds!");
 
     err_code = pm_peers_delete();
     APP_ERROR_CHECK(err_code);
@@ -867,45 +872,45 @@ int main(void)
 
     if (debugEnabled)
     {
-        NRF_LOG_INFO("This is a debug build!!");
+        NRF_LOG_INFO("this is a debug build!!");
     }
     if (simEnabled)
     {
-        NRF_LOG_INFO("This is a simulated build!!");
+        NRF_LOG_INFO("this is a simulated build!!");
     }
 
-    NRF_LOG_INFO("Health Thermometer example started.");
+    NRF_LOG_INFO("health Thermometer example started.");
     advertising_start(erase_bonds);
 
     for (;;)
     {
         if (accel_level_update_flag)
         {
-            bma2x2_data_readout(&m_nus, &m_conn_handle);
+            nus_update_accel();
             accel_level_update_flag = false;
             accel_level_update_counter++;
-            NRF_LOG_INFO("Accel counter: %d", accel_level_update_counter);
+            NRF_LOG_INFO("accel counter: %d", accel_level_update_counter);
         }
         if (battery_level_update_flag)
         {
             nus_update_battery_voltage();
             battery_level_update_flag = false;
             battery_level_update_counter++;
-            NRF_LOG_INFO("Battery counter: %d", battery_level_update_counter);
+            NRF_LOG_INFO("battery counter: %d", battery_level_update_counter);
         }
         if (temp_level_update_flag)
         {
             nus_update_temperature();
             temp_level_update_flag = false;
             temp_level_update_counter++;
-            NRF_LOG_INFO("Temp counter: %d", temp_level_update_counter);
+            NRF_LOG_INFO("temp counter: %d", temp_level_update_counter);
         }
         if (tension_level_update_flag)
         {
             nus_update_tension();
             tension_level_update_flag = false;
             tension_level_update_counter++;
-            NRF_LOG_INFO("Tension counter: %d", tension_level_update_counter);
+            NRF_LOG_INFO("tension counter: %d", tension_level_update_counter);
         }
         idle_state_handle();
     }
