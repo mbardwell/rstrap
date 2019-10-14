@@ -2,18 +2,6 @@
 
 #include <stdbool.h>
 
-#ifdef DEBUG
-    bool debugEnabled = true;
-#else
-    bool debugEnabled = false;
-#endif
-
-#ifdef SIMULATE
-    bool simEnabled = true;
-#else
-    bool simEnabled = false;
-#endif
-
 #define NUS_ACCEL_TAG			0x0
 #define NUS_BATTERY_TAG			0x1
 #define NUS_TEMP_TAG            0x2

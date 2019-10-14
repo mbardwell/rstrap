@@ -51,6 +51,7 @@
 
 #include "stdint.h"
 #include "string.h"
+#include "stdlib.h"
 #include "nordic_common.h"
 #include "nrf.h"
 #include "app_error.h"
@@ -62,7 +63,7 @@
 #include "ble_advertising.h"
 #include "ble_dis.h"
 #include "ble_conn_params.h"
-#include "sensorsim.h"
+#include "ble_nus.h"
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
@@ -75,14 +76,14 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "nrf_pwr_mgmt.h"
-#include "config.h"
-#include "battery.h"
-#include "ble_nus.h"
-#include "tension.h"
-#include "temperature.h"
+#include "nrf_drv_spi.h"
 #include "nrf_drv_saadc.h"
-#include "stdlib.h"
+#include "sensorsim.h"
+#include "config.h"
 #include "accelerometer.h"
+#include "battery.h"
+#include "temperature.h"
+#include "tension.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -870,14 +871,12 @@ int main(void)
     hx711_init(INPUT_CH_A_128, nus_update_tension_callback);
     bma_spi_init();
 
-    if (debugEnabled)
-    {
+    #ifdef DEBUG
         NRF_LOG_INFO("this is a debug build!!");
-    }
-    if (simEnabled)
-    {
+    #endif
+    #ifdef SIMULATE
         NRF_LOG_INFO("this is a simulated build!!");
-    }
+    #endif
 
     NRF_LOG_INFO("health Thermometer example started.");
     advertising_start(erase_bonds);
