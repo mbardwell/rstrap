@@ -31,10 +31,22 @@ enum hx711_sample_status
 
 struct hx711_sample
 {
-   uint32_t   value;   // buffer for ADC read
-   uint8_t    count;   // number of bitshifts. Read complete when count == ADC_RES 
-   enum hx711_sample_status status;
+    uint32_t   value;   // buffer for ADC read
+    uint8_t    count;   // number of bitshifts. Read complete when count == ADC_RES 
+    enum hx711_sample_status status;
 };
+
+struct tension_threshold_t
+{
+    bool is_set;
+    bool should_be_set;
+    float safety_factor;
+    uint32_t value;
+    uint32_t alert_led_pin;
+    uint32_t setup_led_pin;
+    uint32_t okay_led_pin;
+};
+
 
 void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
 /**
@@ -64,3 +76,5 @@ uint32_t hx711_convert(uint32_t sample);
  * @param[out] p_value Pointer to the location where the result should be placed.
  */
 nrfx_err_t hx711_sample_convert(uint32_t *p_value);
+
+void lock_in_tension_threshold(uint32_t safety_factor);

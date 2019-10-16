@@ -106,11 +106,6 @@ volatile bool battery_level_update_flag = false;
 volatile bool temp_level_update_flag = false;
 volatile bool tension_level_update_flag = false;
 
-volatile int accel_level_update_counter = 0;
-volatile int battery_level_update_counter = 0;
-volatile int temp_level_update_counter = 0;
-volatile int tension_level_update_counter = 0;
-
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
 static sensorsim_cfg_t m_tension_sim_cfg;
@@ -120,6 +115,7 @@ static ble_uuid_t m_adv_uuids[] = /**< Universally unique service identifiers. *
     {{BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}};
 
 static void advertising_start();
+static void sleep_mode_enter();
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -343,12 +339,12 @@ static void blink_timer_timeout_handler(void *p_context)
     static bool blink_high = false;
     if (blink_high)
     {
-        nrf_gpio_pin_clear(LED_RED);
+        nrf_gpio_pin_clear(ADVERTISEMENT_LED);
         blink_high = false;
     }
     else
     {
-        nrf_gpio_pin_set(LED_RED);
+        nrf_gpio_pin_set(ADVERTISEMENT_LED);
         blink_high = true;
     }
 }
@@ -466,9 +462,75 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
 /**@snippet [Handling the data received over BLE] */
 static void nus_data_handler(ble_nus_evt_t *p_evt)
 {
-
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
     {
+        uint32_t length = p_evt->params.rx_data.length;
+        uint8_t nus_tag_byte = *p_evt->params.rx_data.p_data;
+        uint8_t command_byte = *(p_evt->params.rx_data.p_data + 1);
+        uint8_t ascii_char;
+        int32_t data = NUS_RX_ERROR;
+        for (uint32_t i=0; i < length-2; ++i)
+        {
+            if (i == 0)
+            {
+                data = NUS_RX_INIT; // because data should equal NUS_RX_ERROR unless it enters this loop
+            }
+            ascii_char = *(p_evt->params.rx_data.p_data+2+i);
+            if (ascii_char < '0' || ascii_char > '9')
+            {
+                NRF_LOG_WARNING("data byte received is not an ascii number");
+                data = NUS_RX_ERROR; // reset data to NUS_RX_ERROR in case previous ascii chars were valid
+                break;
+            }
+            data = data * 10 + (ascii_char - '0');
+        }
+
+        NRF_LOG_INFO("server recieved package of length %d bytes with nus_tag_byte 0x%x, command byte 0x%x, data %d",
+        p_evt->params.rx_data.length,
+        nus_tag_byte,
+        command_byte,
+        data);
+
+        switch (nus_tag_byte)
+        {
+            case NUS_BATTERY_TAG:
+                if (command_byte == UPDATE)
+                {
+                    nus_update_battery_voltage();
+                }
+                break;
+            
+            case NUS_TEMP_TAG:
+                if (command_byte == UPDATE)
+                {
+                    nus_update_temperature();
+                }
+                break;
+            
+            case NUS_TENSION_TAG:
+                if (command_byte == SET)
+                {
+                    if (data != NUS_RX_ERROR && data < 100 && data > 0)
+                    {
+                        lock_in_tension_threshold(data);
+                    }
+                    else
+                    {
+                        NRF_LOG_INFO("using default safety factor to set threshold. %d percent",
+                        DEFAULT_SAFETY_FACTOR_IN_PERCENT);
+                        lock_in_tension_threshold(DEFAULT_SAFETY_FACTOR_IN_PERCENT);
+                    }
+                }
+                break;
+
+            case NUS_SHUTDOWN_TAG:
+                sleep_mode_enter();
+                break;
+
+            default:
+                NRF_LOG_WARNING("nus tag byte not a recognized switch case");
+                break;
+        }
     }
 }
 
@@ -604,12 +666,16 @@ static void sleep_mode_enter(void)
 {
     ret_code_t err_code;
 
-    err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-    APP_ERROR_CHECK(err_code);
-
     // Prepare wakeup buttons.
-    err_code = bsp_btn_ble_sleep_mode_prepare();
-    APP_ERROR_CHECK(err_code);
+    nrf_gpio_pin_sense_t sense = NRF_GPIO_PIN_SENSE_LOW;
+    nrf_gpio_cfg_sense_set(SW1, sense);
+
+    /* Turn off LEDs (I don't know why sd_power_system_off doesn't do this. 
+     * I guess it wants to leave the pins configured as is)
+     */
+    nrf_gpio_pin_set(LED_RED);
+    nrf_gpio_pin_set(LED_GREEN);
+    nrf_gpio_pin_set(LED_BLUE);
 
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
     err_code = sd_power_system_off();
@@ -655,9 +721,8 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
     switch (p_ble_evt->header.evt_id)
     {
     case BLE_GAP_EVT_CONNECTED:
-        NRF_LOG_INFO("connected.");
-        err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-        APP_ERROR_CHECK(err_code);
+        NRF_LOG_INFO("connected");
+        nrf_gpio_pin_clear(ADVERTISEMENT_LED);
         m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
         err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
         APP_ERROR_CHECK(err_code);
@@ -811,7 +876,7 @@ static void buttons_leds_init()
     nrf_gpio_cfg_output(LED_GREEN);
     nrf_gpio_cfg_output(LED_BLUE);
 
-    nrf_gpio_pin_clear(LED_RED);
+    nrf_gpio_pin_set(LED_RED);
     nrf_gpio_pin_set(LED_GREEN);
     nrf_gpio_pin_set(LED_BLUE);
 
@@ -879,7 +944,7 @@ int main(void)
         HX711_PIN_DOUT,
         HX711_PIN_VDD
     };
-    // hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback);
+    hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback);
     nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
     spi_config.ss_pin   = BMA_SPI_SS_PIN;
     spi_config.miso_pin = BMA_SPI_MISO_PIN;
@@ -906,30 +971,22 @@ int main(void)
         {
             nus_update_accel();
             accel_level_update_flag = false;
-            accel_level_update_counter++;
-            NRF_LOG_INFO("accel counter: %d", accel_level_update_counter);
         }
         if (battery_level_update_flag)
         {
             nus_update_battery_voltage();
             battery_level_update_flag = false;
-            battery_level_update_counter++;
-            NRF_LOG_INFO("battery counter: %d", battery_level_update_counter);
         }
         if (temp_level_update_flag)
         {
             nus_update_temperature();
             temp_level_update_flag = false;
-            temp_level_update_counter++;
-            NRF_LOG_INFO("temp counter: %d", temp_level_update_counter);
         }
-        // if (tension_level_update_flag)
-        // {
-        //     nus_update_tension();
-        //     tension_level_update_flag = false;
-        //     tension_level_update_counter++;
-        //     NRF_LOG_INFO("tension counter: %d", tension_level_update_counter);
-        // }
+        if (tension_level_update_flag)
+        {
+            nus_update_tension();
+            tension_level_update_flag = false;
+        }
         idle_state_handle();
     }
 }

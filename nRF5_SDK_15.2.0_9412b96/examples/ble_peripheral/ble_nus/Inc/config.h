@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include "pca10040.h"
+#include "tension.h"
 
 
 #ifdef DEVKIT
@@ -47,12 +48,34 @@
 #define LED_GREEN LED2
 #define LED_BLUE LED3
 
-#define NUS_ACCEL_X_TAG			0x0
-#define NUS_ACCEL_Y_TAG			0x1
-#define NUS_ACCEL_Z_TAG			0x2
-#define NUS_BATTERY_TAG			0x3
-#define NUS_TEMP_TAG            0x4
-#define NUS_TENSION_TAG         0x5
+#define ADVERTISEMENT_LED LED_BLUE
+
+/* sensor tag bytes */
+#define NUS_ACCEL_X_TAG			            0x0
+#define NUS_ACCEL_Y_TAG			            0x1
+#define NUS_ACCEL_Z_TAG			            0x2
+#define NUS_BATTERY_TAG			            0x3
+#define NUS_TEMP_TAG                        0x4
+#define NUS_TENSION_TAG                     0x5
+#define NUS_SHUTDOWN_TAG                    0x6
+
+/* nus command bytes */
+#define UPDATE                              0x0
+#define SET                                 0x1
+
+#define NUS_RX_INIT         0
+#define NUS_RX_ERROR        -1
+
+#define DEFAULT_SAFETY_FACTOR_IN_PERCENT 90
+#define INITIALISE_TENSION_THRESHOLD(_name)                 \
+struct tension_threshold_t _name =                          \
+{                                                           \
+    .is_set = false,                                        \
+    .should_be_set = false,                                  \
+    .alert_led_pin = LED_RED,                               \
+    .setup_led_pin = LED_BLUE,                              \
+    .okay_led_pin = LED_GREEN                               \
+};
 
 #define DEVICE_NAME "rStrap"                    /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME "Route7"              /**< Manufacturer. Will be passed to Device Information Service. */
