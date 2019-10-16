@@ -5,6 +5,7 @@
 #include "nrf_log.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_gpiote.h"
+#include "nrf_gpio.h"
 #include "config.h"
 
 #define HX711_DEFAULT_TIMER_COUNTERTOP 32
@@ -27,7 +28,6 @@ void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     {
         NRF_LOG_WARNING("hx711 setup has not been assigned yet");
     }
-    
 }
 
 void hx711_init(enum hx711_mode mode, struct hx711_setup *setup, hx711_evt_handler_t callback)

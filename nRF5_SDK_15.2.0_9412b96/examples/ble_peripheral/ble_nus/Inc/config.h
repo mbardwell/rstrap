@@ -1,27 +1,45 @@
 #pragma once
 
 #include <stdbool.h>
+#include "pca10040.h"
+
 
 #ifdef DEVKIT
+    #define BMA_INTERRUPT_1 16
+    #define BMA_INTERRUPT_2 15
     #define BMA_SPI_SS_PIN 19
     #define BMA_SPI_MISO_PIN 23
     #define BMA_SPI_MOSI_PIN 22
     #define BMA_SPI_SCK_PIN 20
+    #define BMA_TAP_INTERRUPT_PIN BUTTON_2 //14
+
+    #define HX711_PIN_PD_SCK 2
+    #define HX711_PIN_DOUT 26
+    #define HX711_PIN_VDD 27
+
+    #define LED1 17
+    #define LED2 18
+    #define LED3 19
+
+    #define SW1 BUTTON_1 //13
 #else
+    #define BMA_INTERRUPT_1 16
+    #define BMA_INTERRUPT_2 14
     #define BMA_SPI_SS_PIN 17
     #define BMA_SPI_MISO_PIN 8
     #define BMA_SPI_MOSI_PIN 6
     #define BMA_SPI_SCK_PIN 15
-#endif
+    #define BMA_TAP_INTERRUPT_PIN BMA_INTERRUPT_1
 
-#ifdef DEVKIT
-    #define HX711_PIN_PD_SCK 2
-    #define HX711_PIN_DOUT 26
-    #define HX711_PIN_VDD 27
-#else
     #define HX711_PIN_PD_SCK 7
     #define HX711_PIN_DOUT 5
     #define HX711_PIN_VDD 4
+
+    #define LED1 12 // red
+    #define LED2 10 // green
+    #define LED3 9  // blue
+
+    #define SW1 13
 #endif
 
 #define NUS_ACCEL_X_TAG			0x0

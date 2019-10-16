@@ -2,6 +2,8 @@
 #include "bma2x2.h" 
 #include "nrf_drv_spi.h"
 #include "nrf_delay.h"
+#include "nrf_drv_gpiote.h"
+#include "nrf_gpio.h"
 #include "config.h"
 
 #define BMA2x2_SPI_BUS_WRITE_CONTROL_BYTE	0x7F
@@ -36,7 +38,10 @@ void bma_spi_init(nrf_drv_spi_config_t *spi_config)
     {
         NRF_LOG_INFO("BMA initialisation failed. Received chip id: %x", bma2x2.chip_id);
     }
+}
 
+void bma_wake()
+{
     s32 com_rslt = NO_ERROR;
     com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_NORMAL);
     u8 bw_value_u8 = 0x08;/* set bandwidth of 7.81Hz*/
@@ -44,7 +49,7 @@ void bma_spi_init(nrf_drv_spi_config_t *spi_config)
     BMA_ERROR_CHECK(com_rslt);
 }
 
-void bma_spi_deinit(nrf_drv_spi_config_t *spi_config)
+void bma_sleep()
 {
     s32 com_rslt = NO_ERROR;
     com_rslt += bma2x2_set_power_mode(BMA2x2_MODE_DEEP_SUSPEND);
@@ -99,11 +104,41 @@ void spi_delay(u32 millis_time)
     nrf_delay_ms(millis_time);
 }
 
-void bma2x2_sample(struct bma_xyz_sample *sample)
+void bma_sample(struct bma_xyz_sample *sample)
 {
-    s32 com_rslt = NO_ERROR;
-	com_rslt += bma2x2_read_accel_x(&sample->x);
-	com_rslt += bma2x2_read_accel_y(&sample->y);
-	com_rslt += bma2x2_read_accel_z(&sample->z);
-    BMA_ERROR_CHECK(com_rslt);
+    if (bma2x2.power_mode_u8 == BMA2x2_MODE_NORMAL)
+    {
+        s32 com_rslt = NO_ERROR;
+        com_rslt += bma2x2_read_accel_x(&sample->x);
+        com_rslt += bma2x2_read_accel_y(&sample->y);
+        com_rslt += bma2x2_read_accel_z(&sample->z);
+        BMA_ERROR_CHECK(com_rslt);
+    }
+    else
+    {
+        NRF_LOG_WARNING("bma is offline. Cannot sample");
+    }
+}
+
+void bma_enable_tap_interrupt(uint32_t pin, nrf_drv_gpiote_evt_handler_t evt_handler)
+{
+    ret_code_t ret_code;
+
+    if (!nrf_drv_gpiote_is_init())
+    {
+        ret_code = nrf_drv_gpiote_init();
+        APP_ERROR_CHECK(ret_code);
+    }
+
+    nrf_drv_gpiote_in_config_t gpiote_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
+    gpiote_config.pull = NRF_GPIO_PIN_PULLUP;
+
+    ret_code = nrf_drv_gpiote_in_init(pin, &gpiote_config, evt_handler);
+    APP_ERROR_CHECK(ret_code);
+
+    nrf_drv_gpiote_in_event_enable(pin, true);
+
+    NRF_LOG_INFO("initialised pin %d for tap intr", pin);
+
+    bma2x2_set_intr_enable(BMA2x2_SLOPE_Z_INTR, INTR_ENABLE);
 }

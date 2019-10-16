@@ -55,6 +55,7 @@
 #include "nordic_common.h"
 #include "nrf.h"
 #include "app_error.h"
+#include "app_timer.h"
 #include "ble.h"
 #include "ble_err.h"
 #include "ble_hci.h"
@@ -67,7 +68,6 @@
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
-#include "app_timer.h"
 #include "peer_manager.h"
 #include "peer_manager_handler.h"
 #include "bsp_btn_ble.h"
@@ -78,6 +78,7 @@
 #include "nrf_pwr_mgmt.h"
 #include "nrf_drv_spi.h"
 #include "nrf_drv_saadc.h"
+#include "nrf_drv_gpiote.h"
 #include "sensorsim.h"
 #include "config.h"
 #include "accelerometer.h"
@@ -201,7 +202,9 @@ static void nus_update_accel(void)
     uint8_t sample_in_ascii[max_n_ascii_characters];
     uint16_t actual_number_of_digits;
 
-    bma2x2_sample(&sample);
+    bma_wake();
+
+    bma_sample(&sample);
     NRF_LOG_INFO("accel -- x: %d, y: %d, z: %d", sample.x, sample.y, sample.z);
 
     prepare_accel_for_nus(sample.x, sample_in_ascii, NUS_ACCEL_X_TAG);
@@ -215,6 +218,8 @@ static void nus_update_accel(void)
     prepare_accel_for_nus(sample.z, sample_in_ascii, NUS_ACCEL_Z_TAG);
     actual_number_of_digits = number_of_digits(abs(sample.z)) + 2;
     send_over_nus(sample_in_ascii, &actual_number_of_digits);
+
+    bma_sleep();
 }
 
 static void nus_update_battery_voltage(void)
@@ -887,6 +892,11 @@ static void advertising_start(bool erase_bonds)
     }
 }
 
+void bma_tap_interrupt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+    NRF_LOG_INFO("tap interrupt detected");
+}
+
 int main(void)
 {
     bool erase_bonds;
@@ -894,7 +904,7 @@ int main(void)
     // Initialize.
     log_init();
     timers_init();
-    buttons_leds_init(&erase_bonds);
+    // buttons_leds_init(&erase_bonds);
     power_management_init();
     ble_stack_init();
     gap_params_init();
@@ -910,7 +920,7 @@ int main(void)
         HX711_PIN_DOUT,
         HX711_PIN_VDD
     };
-    hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback);
+    // hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback);
     nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
     spi_config.ss_pin   = BMA_SPI_SS_PIN;
     spi_config.miso_pin = BMA_SPI_MISO_PIN;
@@ -919,6 +929,7 @@ int main(void)
     spi_config.mode = NRF_DRV_SPI_MODE_3;
     spi_config.bit_order = NRF_SPI_BIT_ORDER_MSB_FIRST;
     bma_spi_init(&spi_config);
+    bma_enable_tap_interrupt(BMA_TAP_INTERRUPT_PIN, bma_tap_interrupt_handler);
 
     #ifdef DEBUG
         NRF_LOG_INFO("this is a debug build!!");
@@ -927,7 +938,7 @@ int main(void)
         NRF_LOG_INFO("this is a simulated build!!");
     #endif
 
-    NRF_LOG_INFO("health Thermometer example started.");
+    NRF_LOG_INFO("rStrap started");
     advertising_start(erase_bonds);
 
     for (;;)
@@ -953,13 +964,13 @@ int main(void)
             temp_level_update_counter++;
             NRF_LOG_INFO("temp counter: %d", temp_level_update_counter);
         }
-        if (tension_level_update_flag)
-        {
-            nus_update_tension();
-            tension_level_update_flag = false;
-            tension_level_update_counter++;
-            NRF_LOG_INFO("tension counter: %d", tension_level_update_counter);
-        }
+        // if (tension_level_update_flag)
+        // {
+        //     nus_update_tension();
+        //     tension_level_update_flag = false;
+        //     tension_level_update_counter++;
+        //     NRF_LOG_INFO("tension counter: %d", tension_level_update_counter);
+        // }
         idle_state_handle();
     }
 }
