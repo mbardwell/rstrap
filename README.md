@@ -17,7 +17,7 @@
 │   ├── documentation
 │   ├── examples
 │   │   ├── ble_central
-│   │   ├── ble_peripheral <-- rStrap code here (ble_app_hts folder)
+│   │   ├── ble_peripheral <-- rStrap code here (ble_app_nus folder)
 │   │   └── peripheral
 │   ├── external
 │   ├── external_tools
@@ -37,10 +37,17 @@
 
 * Use mount holes to connect printed circuit board to hardware
 * Plug in:
-  * J1: hx711 tension sensor
+  * J1: strain gauge
   * J2: 3V power
 
-Device will start advertising itself
+Device will start advertising itself.
+
+LED indicators:
+
+* Flashing blue means device is advertising
+* Solid blue means device has connected
+* Solid green means tension threshold has been set
+* Solid red means tension has fallen below the set threshold
 
 ### Developer Setup ###
 
@@ -57,12 +64,26 @@ Make optional arguments:
 * DEBUG=1: turns on logging
 * DEBUG_PIN=X: sets debug pin to X [default pin found in ble_app_hts/pca10040/s132/config/sdk_config.h]
 * BAUDRATE=X: sets debug pin baudrate to X [default BR found in ble_app_hts/pca10040/s132/config/sdk_config.h]
-* DEVKIT=1: sets accelerometer, tension communication pins to natural areas on devkit board
+* DEVKIT=1: sets accelerometer, tension communication and led pins to natural areas on devkit board
 
 ```e.g. sudo make -j8 flash DEBUG=1 DEBUG_PIN=22```
 
 Suggestion: the fastest way to start viewing the data is to download a cellphone app that allows you to scan and connect with bluetooth low energy devices (e.g. nRF Connect)
 
+
+
+How to communicate with the device using the Nordic UART Service (NUS):
+
+* Turn on device. Connect via bluetooth. Send bytes using UART RX characteristic
+* Bytes should be sent in this order in the same transmission: SENSOR TAG [1 byte], COMMAND [1 byte], DATA [n ascii bytes]
+
+e.g. sending 05 [NUS_TENSION_TAG], 01 [SET], 39, 35 [2 DATA BYTES] gets translated to 05, 01, 95
+
+on nRFConnect it looks like
+
+![image](https://user-images.githubusercontent.com/11367325/67082812-1ea3a280-f157-11e9-835f-39bc6ea60ac4.png)
+
+All the SENSOR TAG and COMMAND bytes can be found in config.h
 
 ### Resources ###
 
