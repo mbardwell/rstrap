@@ -7,6 +7,8 @@
 
 typedef void (*hx711_evt_handler_t) (uint32_t* data);
 
+typedef void (*tension_alert_evt_handler_t) ();
+
 enum hx711_mode
 {
    INPUT_CH_A_128 = 25,
@@ -53,7 +55,7 @@ void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
  * @brief Function for initialising HX711
  * @param[in] mode Set HX711 to sample channel A/B at gain 128/32/64
  */
-void hx711_init(enum hx711_mode mode, struct hx711_setup *setup, hx711_evt_handler_t callback);
+void hx711_init(enum hx711_mode, struct hx711_setup*, hx711_evt_handler_t, tension_alert_evt_handler_t);
 
 /**
  * @brief Function for starting HX711 sampling

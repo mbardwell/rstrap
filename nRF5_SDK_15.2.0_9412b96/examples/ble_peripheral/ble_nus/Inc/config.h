@@ -62,6 +62,7 @@
 /* nus command bytes */
 #define UPDATE                              0x0
 #define SET                                 0x1
+#define ALERT                               0x2
 
 #define NUS_RX_INIT         0
 #define NUS_RX_ERROR        -1

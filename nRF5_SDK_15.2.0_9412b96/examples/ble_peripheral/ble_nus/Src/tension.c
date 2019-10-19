@@ -12,7 +12,8 @@
 #define HX711_DEFAULT_TIMER_COMPARE 16
 #define HX711_DEFAULT_ADC_RES 24
 
-static hx711_evt_handler_t hx711_callback = NULL; 
+static hx711_evt_handler_t hx711_callback = NULL;
+static tension_alert_evt_handler_t tension_alert_callback = NULL;
 static struct hx711_sample m_sample;
 static enum hx711_mode m_mode;
 static INITIALISE_TENSION_THRESHOLD(m_tension_threshold);
@@ -31,10 +32,11 @@ void gpiote_evt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     }
 }
 
-void hx711_init(enum hx711_mode mode, struct hx711_setup *setup, hx711_evt_handler_t callback)
+void hx711_init(enum hx711_mode mode, struct hx711_setup *setup, hx711_evt_handler_t send_sample_cb, tension_alert_evt_handler_t alert_cb)
 {
     ret_code_t ret_code;
-    hx711_callback = callback;
+    hx711_callback = send_sample_cb;
+    tension_alert_callback = alert_cb;
     m_setup = setup;
     m_mode = mode;
 
@@ -97,6 +99,42 @@ void hx711_stop()
     nrf_drv_gpiote_in_event_disable(m_setup->dout);
 }
 
+void check_tension(int32_t tension_sample)
+{
+    if (m_tension_threshold.should_be_set)
+    {
+        if (m_tension_threshold.safety_factor)
+        {
+            m_tension_threshold.value = tension_sample * m_tension_threshold.safety_factor / 100;
+        }
+        else
+        {
+            m_tension_threshold.value = tension_sample * DEFAULT_SAFETY_FACTOR_IN_PERCENT / 100;            
+        }
+        m_tension_threshold.should_be_set = false;
+        m_tension_threshold.is_set = true;
+        NRF_LOG_DEBUG("threshold set: %d", m_tension_threshold.value);
+        nrf_gpio_pin_set(m_tension_threshold.alert_led_pin);
+        nrf_gpio_pin_set(m_tension_threshold.setup_led_pin);
+        nrf_gpio_pin_clear(m_tension_threshold.okay_led_pin);
+    }
+
+    if (m_tension_threshold.is_set)
+    {
+        if (tension_sample <= m_tension_threshold.value)
+        {
+            if (tension_alert_callback != NULL)
+            {
+                tension_alert_callback();
+            }
+            nrf_gpio_pin_set(m_tension_threshold.okay_led_pin);
+            nrf_gpio_pin_set(m_tension_threshold.setup_led_pin);
+            nrf_gpio_pin_clear(m_tension_threshold.alert_led_pin);
+            NRF_LOG_INFO("tension below threshold. Strap loose!");
+        }
+    }
+}
+
 /* Clocks out HX711 result - if readout fails consistently, try to increase the clock period and/or enable compiler optimization */
 void hx711_sample()
 {
@@ -139,34 +177,7 @@ void hx711_sample()
     m_sample.value,
     m_sample.value);
 
-    if (m_tension_threshold.should_be_set)
-    {
-        if (m_tension_threshold.safety_factor)
-        {
-            m_tension_threshold.value = m_sample.value * m_tension_threshold.safety_factor / 100;
-        }
-        else
-        {
-            m_tension_threshold.value = m_sample.value * DEFAULT_SAFETY_FACTOR_IN_PERCENT / 100;            
-        }
-        m_tension_threshold.should_be_set = false;
-        m_tension_threshold.is_set = true;
-        NRF_LOG_DEBUG("threshold set: %d", m_tension_threshold.value);
-        nrf_gpio_pin_set(m_tension_threshold.alert_led_pin);
-        nrf_gpio_pin_set(m_tension_threshold.setup_led_pin);
-        nrf_gpio_pin_clear(m_tension_threshold.okay_led_pin);
-    }
-
-    if (m_tension_threshold.is_set)
-    {
-        if (m_sample.value <= m_tension_threshold.value)
-        {
-            nrf_gpio_pin_set(m_tension_threshold.okay_led_pin);
-            nrf_gpio_pin_set(m_tension_threshold.setup_led_pin);
-            nrf_gpio_pin_clear(m_tension_threshold.alert_led_pin);
-            NRF_LOG_INFO("tension below threshold. Strap loose!");
-        }
-    }
+    check_tension(m_sample.value);
 
     if (hx711_callback != NULL)
     {

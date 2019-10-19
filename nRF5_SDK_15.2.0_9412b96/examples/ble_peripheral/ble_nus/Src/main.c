@@ -223,7 +223,7 @@ static void nus_update_accel(void)
 static void nus_update_battery_voltage(void)
 {
     int16_t voltage;
-    static uint16_t max_n_ascii_characters = 1+4; // Byte order: nus tag, four digits for milli-voltage
+    static uint16_t max_n_ascii_characters = 1+1+4; // Byte order: nus tag, command, four digits for milli-voltage
     uint8_t voltage_in_ascii[max_n_ascii_characters];
 
     battery_level_in_mv(&voltage);
@@ -236,7 +236,8 @@ static void nus_update_battery_voltage(void)
     }
 
     voltage_in_ascii[0] = NUS_BATTERY_TAG;
-    __itoa(voltage, (char*) voltage_in_ascii+1, 10);
+    voltage_in_ascii[1] = UPDATE;
+    __itoa(voltage, (char*) voltage_in_ascii+2, 10);
     send_over_nus(voltage_in_ascii, &max_n_ascii_characters);
 }
 
@@ -244,7 +245,7 @@ static void nus_update_temperature(void)
 {
     static int32_t temperature;
     static uint8_t sign = 0x2B; // sign is default + in ascii
-    static uint16_t max_n_ascii_characters = 1+1+2; // Byte order: nus tag, sign (+/-), two digits for temperature
+    static uint16_t max_n_ascii_characters = 1+1+1+2; // Byte order: nus tag, command, sign (+/-), two digits for temperature
     uint8_t temperature_in_ascii[max_n_ascii_characters];
 
     temperature_sample(&temperature); // returns temperature in celcius
@@ -261,8 +262,9 @@ static void nus_update_temperature(void)
     }
     
     temperature_in_ascii[0] = NUS_TEMP_TAG;
-    temperature_in_ascii[1] = sign;
-    __itoa(temperature, (char*) temperature_in_ascii+2, 10);
+    temperature_in_ascii[1] = UPDATE;
+    temperature_in_ascii[2] = sign;
+    __itoa(temperature, (char*) temperature_in_ascii+3, 10);
     send_over_nus(temperature_in_ascii, &max_n_ascii_characters);
 }
 
@@ -298,8 +300,19 @@ void nus_update_tension_callback(uint32_t* tension)
     }
 
     tension_in_ascii[0] = NUS_TENSION_TAG;
-    __itoa(*tension, (char*) tension_in_ascii+1, 10);
+    tension_in_ascii[1] = UPDATE;
+    __itoa(*tension, (char*) tension_in_ascii+2, 10);
     send_over_nus(tension_in_ascii, &count);
+}
+
+void nus_tension_alert()
+{
+    uint8_t alert[2];
+    alert[0] = NUS_TENSION_TAG;
+    alert[1] = ALERT;
+    uint16_t len = 2;
+
+    send_over_nus(alert, &len);
 }
 
 /**@brief Functions for handling the timer timeouts.
@@ -944,7 +957,7 @@ int main(void)
         HX711_PIN_DOUT,
         HX711_PIN_VDD
     };
-    hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback);
+    hx711_init(INPUT_CH_A_128, &setup, nus_update_tension_callback, nus_tension_alert);
     nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
     spi_config.ss_pin   = BMA_SPI_SS_PIN;
     spi_config.miso_pin = BMA_SPI_MISO_PIN;
