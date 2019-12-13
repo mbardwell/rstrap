@@ -512,19 +512,19 @@ static void services_init(void)
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
 
-    // Initialize Health Thermometer Service
-    memset(&hts_init, 0, sizeof(hts_init));
+    // // Initialize Health Thermometer Service
+    // memset(&hts_init, 0, sizeof(hts_init));
 
-    hts_init.evt_handler = on_hts_evt;
-    hts_init.temp_type_as_characteristic = TEMP_TYPE_AS_CHARACTERISTIC;
-    hts_init.temp_type = BLE_HTS_TEMP_TYPE_BODY;
+    // hts_init.evt_handler = on_hts_evt;
+    // hts_init.temp_type_as_characteristic = TEMP_TYPE_AS_CHARACTERISTIC;
+    // hts_init.temp_type = BLE_HTS_TEMP_TYPE_BODY;
 
-    // Here the sec level for the Health Thermometer Service can be changed/increased.
-    hts_init.ht_meas_cccd_wr_sec = SEC_JUST_WORKS;
-    hts_init.ht_type_rd_sec = SEC_OPEN;
+    // // Here the sec level for the Health Thermometer Service can be changed/increased.
+    // hts_init.ht_meas_cccd_wr_sec = SEC_JUST_WORKS;
+    // hts_init.ht_type_rd_sec = SEC_OPEN;
 
-    err_code = ble_hts_init(&m_hts, &hts_init);
-    APP_ERROR_CHECK(err_code);
+    // err_code = ble_hts_init(&m_hts, &hts_init);
+    // APP_ERROR_CHECK(err_code);
 
     // Initialize Battery Service.
     memset(&bas_init, 0, sizeof(bas_init));
@@ -1062,13 +1062,13 @@ int main(void)
             tension_level_update_counter++;
             NRF_LOG_INFO("Tension counter: %d", tension_level_update_counter);
         }
-        if (hts_level_update_flag)
-        {
-            temperature_measurement_send();
-            hts_level_update_flag = false;
-            hts_level_update_counter++;
-            NRF_LOG_INFO("Hts counter: %d", hts_level_update_counter);
-        }
+        // if (hts_level_update_flag)
+        // {
+        //     temperature_measurement_send();
+        //     hts_level_update_flag = false;
+        //     hts_level_update_counter++;
+        //     NRF_LOG_INFO("Hts counter: %d", hts_level_update_counter);
+        // }
         if (accel_level_update_flag)
         {
             bma2x2_data_readout(&m_nus, &m_conn_handle);

@@ -14,10 +14,23 @@ enum hx711_mode
    INPUT_CH_A_64 = 27
 };
 
+enum hx711_evt
+{
+    DATA_READY,
+    DATA_ERROR
+};
+
+enum hx711_vdd_connection
+{
+    BT832_VDD,
+    BT832_GPIO
+};
+
 struct hx711_setup // this should be variables in class
 {
     uint32_t pd_sck_pin;
     uint32_t dout_pin;
+    enum hx711_vdd_connection vdd_conn; // declares if vdd is connected to mains or gpio
     uint32_t vdd_pin;
     uint32_t timer_countertop;
     uint32_t timer_compare;
