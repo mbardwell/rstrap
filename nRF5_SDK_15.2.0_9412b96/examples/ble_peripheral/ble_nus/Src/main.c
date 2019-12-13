@@ -185,7 +185,7 @@ static void send_over_nus(uint8_t *data, uint16_t *length)
 {
     ret_code_t err_code;
     err_code = ble_nus_data_send(&m_nus, data, length, m_conn_handle);
-    if (err_code != NRF_ERROR_INVALID_STATE) // TODO: remove this quick fix (used in other send functions too)
+    if (err_code != NRF_ERROR_INVALID_STATE && err_code != NRF_ERROR_RESOURCES) // TODO: remove this quick fix (used in other send functions too)
     {
         APP_ERROR_CHECK(err_code);
     }
@@ -275,19 +275,14 @@ static void nus_update_tension(void)
 
 void nus_update_tension_callback(uint32_t* tension)
 {
-    static uint16_t max_n_ascii_characters = 1+7; // Byte order: nus tag, seven digits for tension reading
+    uint16_t max_n_ascii_characters = 1+1+8; // Byte order: nus tag, update tag, eight digits for maximum tension reading
     uint8_t tension_in_ascii[max_n_ascii_characters];
 
     NRF_LOG_INFO("sending tension: %d", *tension);
 
-    if (tension < 0)
-    {
-        NRF_LOG_WARNING("tension should not be negative. Not sent over nus");
-        return;
-    }
 
     uint32_t temp_tension = *tension;
-    uint16_t count = 1;
+    uint16_t count = 2;
     // at minimum send the nus tag and one digit
     if (temp_tension == 0)
     {
@@ -936,6 +931,13 @@ void bma_tap_interrupt_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t a
     NRF_LOG_INFO("tap interrupt detected");
 }
 
+void set_tx_power_for_advertising(int8_t tx_power)
+{
+    ret_code_t err_code;
+    err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_advertising.adv_handle, tx_power);
+    APP_ERROR_CHECK(err_code);
+}
+
 int main(void)
 {
     // Initialize.
@@ -948,6 +950,7 @@ int main(void)
     gatt_init();
     services_init();
     advertising_init();
+    set_tx_power_for_advertising(TX_POWER);
     sensor_simulator_init();
     conn_params_init();
     peer_manager_init();
@@ -966,7 +969,6 @@ int main(void)
     spi_config.mode = NRF_DRV_SPI_MODE_3;
     spi_config.bit_order = NRF_SPI_BIT_ORDER_MSB_FIRST;
     bma_spi_init(&spi_config);
-    bma_enable_tap_interrupt(BMA_TAP_INTERRUPT_PIN, bma_tap_interrupt_handler);
 
     #ifdef DEBUG
         NRF_LOG_INFO("this is a debug build!!");

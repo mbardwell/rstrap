@@ -167,11 +167,6 @@ void hx711_sample()
 
     m_sample.value = hx711_convert(m_sample.value);
     
-    if (m_sample.value > 0x7FFFFF)
-    {
-        NRF_LOG_WARNING("sample returned a negative value. Check connections");
-        return;
-    }
     NRF_LOG_DEBUG("number of bits: %d. ADC val: 0x%x or 0d%d", 
     m_sample.count,
     m_sample.value,

@@ -18,7 +18,7 @@
     #define HX711_PIN_DOUT 26
     #define HX711_PIN_VDD 27
 
-    #define LED1 17
+    #define LED1 17 
     #define LED2 18
     #define LED3 19
 
@@ -42,6 +42,9 @@
 
     #define SW1 13
 #endif
+
+// Tested tx_power values (dBm): -40, -20, -16, -12, -8, -4, 0, +3, +4
+static const int8_t TX_POWER = +4;
 
 // colors only match custom board LED colors
 #define LED_RED LED1
