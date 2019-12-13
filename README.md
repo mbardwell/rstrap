@@ -55,12 +55,12 @@ NUS commands:
 
 |                | NUS Channel | Sensor Byte | Command Byte | Data Byte 1* | Data Byte 2 | Data Byte 2 | ... | Explination                                                                                                                                          |
 |----------------|-------------|:-----------:|:------------:|:------------:|:-----------:|:-----------:|:---:|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Set tension    |  rx         | 05          | 01           | 95           |             |             |     | The client requests that the server take a new tension measurement, multiply it by 0.95 and use the output as the threshold. LED should change color |
+| Set tension    |  rx         | 05          | 01           | 39           | 35          |             |     | The client requests that the server take a new tension measurement, multiply it by 0.95 and use the output as the threshold. LED should change color |
 | Tension Alert  |  rx         | 05          | 02           |              |             |             |     | The server has detected that the tension has fallen below the client-set threshold. LED should change color                                          |
 | Update Battery | tx          | 03          | 00           |              |             |             |     | Client requests battery voltage update                                                                                                               |
 | Update Battery | rx          | 03          | 00           | 33           | 31          | 36          | 32  | Client receives battery voltage update (3162)                                                                                                        |
 | Update Temp    | tx          | 04          | 00           |              |             |             |     | Client requests temperature update                                                                                                                   |
-| Update Temp    | rx          | 04          | 00           | 28 (+)       | 32          | 30          |     | Client receives temperature update (+20)                                                                                                             |
+| Update Temp    | rx          | 04          | 00           | 2B (+)       | 32          | 30          |     | Client receives temperature update (+20)                                                                                                             |
 | Update Accel-X | rx          | 00          | 00           | 2D (-)       | 33          | 30          | 30  | Client receives accel-x update  (-300)                                                                                                               |
 | Update Accel-Y | rx          | 01          | 00           | 2B           | 31          | 34          |     | Client receives accel-y update (+14)                                                                                                                 |
 | Update Accel-Z | rx          | 02          | 00           | 2D           | 35          | 35          |     | Client receives accel-z update (-55)                                                                                                                 |
@@ -91,7 +91,9 @@ Make optional arguments:
 * BAUDRATE=X: sets debug pin baudrate to X [default BR found in ble_app_hts/pca10040/s132/config/sdk_config.h]
 * DEVKIT=1: sets accelerometer, tension communication and led pins to natural areas on devkit board
 
-```e.g. sudo make -j8 flash DEBUG=1 DEBUG_PIN=26```
+```e.g. make -j8 flash DEBUG=1 DEBUG_PIN=26```
+
+You may need to use sudo (ie sudo make...) depending on make's permissions
 
 Suggestion: the fastest way to start viewing the data is to download a cellphone app that allows you to scan and connect with bluetooth low energy devices (e.g. nRF Connect)
 

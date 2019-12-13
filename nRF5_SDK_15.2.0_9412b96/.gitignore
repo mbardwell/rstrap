@@ -28,7 +28,8 @@
 *.app
 *.i*86
 *.x86_64
-*.hex
+*.in
+*.bin
 
 # Debug files
 *.dSYM/
@@ -46,9 +47,6 @@ Mkfile.old
 dkms.conf
 
 # Custom
-*.jlink
-*.emSession
-examples/*/*/*/*/ses/Output
-*.txt
-*.ld
-*.icf
+license*
+components/softdevice/*
+*_build
