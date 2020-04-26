@@ -229,5 +229,5 @@ erase:
 	nrfjprog --eraseall -f nrf51
 
 serial:
-	@echo __screen -S central /dev/ttyACM[0,1] 115200__ to start serial
+	@echo __screen -S central /dev/ttyACMX 115200__ to start serial
 	@echo Use __dserial__ to display connected devices
