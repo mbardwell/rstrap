@@ -1,4 +1,5 @@
 import logging
+import time
 from abc import ABC
 from enum import Enum
 from typing import List
@@ -21,33 +22,34 @@ class Server(NordicDK):
 	SERIAL_NUMBER = 681261902
 	DEV_FAMILY = 'NRF51'
 
+class RTT(Enum):
+	BYTES_TO_READ = 1024
+
 class SerialComms:
 	def __init__(self, hardware: NordicDK):
 		self.hardware = hardware
 		self.api = self.get_api()
 		self.open_device()
-		logger.debug("hi")
+		self.connect_to_device(hardware.SERIAL_NUMBER)
 
 	def get_api(self) -> pynrfjprog.LowLevel.API:
 		return API.API(self.hardware.DEV_FAMILY)
 
 	def open_device(self):
-		self.api.open()
+		if not self.api.is_open():
+			self.api.open()
 
 	def connect_to_device(self, sn: int):
 		self.api.connect_to_emu_with_snr(sn)
 
-	def get_serial_numbers(self) -> List:
-		sn = self.api.enum_emu_snr()
-		logger.info(f"serial numbers: {sn}")
-		return sn
-
 	def get_rtt(self):
-		if self.api.is_rtt_started():
+		if not self.api.is_rtt_started():
 			self.api.rtt_start()
-			logger.info(f"read: {self.api.rtt_read(0, 100)}")
-		else:
-			logger.info(f"Cannot read device. Rtt not started")
+			time.sleep(1)
+
+		logs = self.api.rtt_read(0, RTT.BYTES_TO_READ.value)
+		logger.info(f"read: {logs}")
+		return logs
 
 	def erase_device(self):
 		self.api.erase_all()
@@ -58,6 +60,7 @@ class SerialComms:
 	def __del__(self):
 		if self.api.is_rtt_started():
 			self.api.rtt_stop()
+		self.api.reset_connected_emu()
 		self.api.disconnect_from_emu()
 		self.api.close()
 		logger.debug("Exited cleanly")
