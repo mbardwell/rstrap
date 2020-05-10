@@ -5,6 +5,7 @@ from enum import Enum
 from typing import List
 
 import pynrfjprog
+import serial
 from pynrfjprog import API
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class Server(NordicDK):
 	SERIAL_NUMBER = 681261902
 	DEV_FAMILY = 'NRF51'
 
-class RTT(Enum):
+class CommParameters(Enum):
 	BYTES_TO_READ = 1024
 
 class SerialComms:
@@ -63,4 +64,20 @@ class SerialComms:
 		self.api.reset_connected_emu()
 		self.api.disconnect_from_emu()
 		self.api.close()
-		logger.debug("Exited cleanly")
+		logger.debug("Exited RTT cleanly")
+
+class UARTComms:
+	def __init__(self, baudrate, port):
+		self.baudrate = baudrate
+		self.port = port
+		self.ser = serial.Serial(port, baudrate, timeout=1)
+
+	def read(self):
+		return self.ser.read(CommParameters.BYTES_TO_READ.value)
+
+	def readline(self):
+		return self.ser.readline()
+
+	def __del__(self):
+		self.ser.close()
+		logger.debug("Exited UART cleanly")
