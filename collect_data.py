@@ -26,7 +26,7 @@ class Server(NordicDK):
 class CommParameters(Enum):
 	BYTES_TO_READ = 1024
 
-class SerialComms:
+class RTTComms:
 	def __init__(self, hardware: NordicDK):
 		self.hardware = hardware
 		self.api = self.get_api()
@@ -39,16 +39,21 @@ class SerialComms:
 	def open_device(self):
 		if not self.api.is_open():
 			self.api.open()
+			logger.debug("Opened JLinkARM.dll")
+		else:
+			logger.debug("JLinkARM.dll is already open")
 
 	def connect_to_device(self, sn: int):
-		self.api.connect_to_emu_with_snr(sn)
+		try:
+			self.api.connect_to_emu_with_snr(sn)
+		except Exception as e:
+			logger.debug(f"Exception: {e}")
 
 	def get_rtt(self):
 		if not self.api.is_rtt_started():
 			self.api.rtt_start()
 			time.sleep(1)
-
-		logs = self.api.rtt_read(0, RTT.BYTES_TO_READ.value)
+		logs = self.api.rtt_read(0, CommParameters.BYTES_TO_READ.value)
 		logger.info(f"read: {logs}")
 		return logs
 
@@ -62,6 +67,7 @@ class SerialComms:
 		if self.api.is_rtt_started():
 			self.api.rtt_stop()
 		self.api.reset_connected_emu()
+		self.api.sys_reset()
 		self.api.disconnect_from_emu()
 		self.api.close()
 		logger.debug("Exited RTT cleanly")
