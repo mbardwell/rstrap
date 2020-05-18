@@ -2755,7 +2755,7 @@
 // <e> UART_CONFIG_LOG_ENABLED - Enables logging in the module.
 //==========================================================
 #ifndef UART_CONFIG_LOG_ENABLED
-#define UART_CONFIG_LOG_ENABLED 0
+#define UART_CONFIG_LOG_ENABLED 1
 #endif
 #if  UART_CONFIG_LOG_ENABLED
 // <o> UART_CONFIG_LOG_LEVEL  - Default Severity level
@@ -2767,7 +2767,7 @@
 // <4=> Debug 
 
 #ifndef UART_CONFIG_LOG_LEVEL
-#define UART_CONFIG_LOG_LEVEL 3
+#define UART_CONFIG_LOG_LEVEL 4
 #endif
 
 // <o> UART_CONFIG_INFO_COLOR  - ANSI escape code prefix.
