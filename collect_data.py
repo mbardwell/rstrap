@@ -4,6 +4,7 @@ from abc import ABC
 from enum import Enum
 from typing import List
 
+import click
 import pynrfjprog
 import serial
 from pynrfjprog import API
@@ -49,11 +50,11 @@ class RTTComms:
 		except Exception as e:
 			logger.debug(f"Exception: {e}")
 
-	def get_rtt(self):
+	def read(self, nbytes: int=CommParameters.BYTES_TO_READ.value):
 		if not self.api.is_rtt_started():
 			self.api.rtt_start()
 			time.sleep(1)
-		logs = self.api.rtt_read(0, CommParameters.BYTES_TO_READ.value)
+		logs = self.api.rtt_read(0, nbytes)
 		logger.info(f"read: {logs}")
 		return logs
 
@@ -62,6 +63,13 @@ class RTTComms:
 
 	def write_to_device(self, ADDRESS, DATA, IS_FLASH: bool):
 		self.api.write_u32(ADDRESS, DATA, IS_FLASH)
+
+	def read_continuously(self, freq: int=2):
+		hold = time.time()
+		while True:
+			if (time.time() - hold) > (1/freq):
+				self.read()
+				hold = time.time()
 
 	def __del__(self):
 		if self.api.is_rtt_started():
@@ -78,12 +86,40 @@ class UARTComms:
 		self.port = port
 		self.ser = serial.Serial(port, baudrate, timeout=1)
 
-	def read(self):
-		return self.ser.read(CommParameters.BYTES_TO_READ.value)
+	def read(self, nbytes: int=CommParameters.BYTES_TO_READ.value):
+		return self.ser.read(nbytes)
 
 	def readline(self):
 		return self.ser.readline()
 
+	def read_continuously(self, freq: int=2):
+		hold = time.time()
+		while True:
+			if (time.time() - hold) > (1/freq):
+				self.read()
+				hold = time.time()
+
 	def __del__(self):
 		self.ser.close()
 		logger.debug("Exited UART cleanly")
+
+
+@click.command()
+@click.option("-c", '--channel',required=True,	type=click.Choice(['uart', 'rtt'], case_sensitive=False),
+help="UART [requires --port] or RTT channel [requires --device]")
+@click.option("-d", '--device',	required=True,	type=click.Choice(['client', 'server']),
+help="client (peripheral) or server (central) device")
+def main(device, channel, port):
+	if channel == "uart":
+		if port is None:
+			raise ValueError("uart requires --port to be specified")
+		uart = UARTComms(115200, port)
+		uart.read_continuously()
+	else:
+		if device is None:
+			raise ValueError("rtt requires --device to be specified")
+		rtt = RTTComms(Client) if channel == "client" else RTTComms(Server)
+		rtt.read_continuously()
+
+if __name__ == "__main__":
+	main()
