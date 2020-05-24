@@ -1,7 +1,9 @@
 import logging
+import re
 import time
 from abc import ABC
 from enum import Enum
+from subprocess import run, PIPE, STDOUT
 from typing import List
 
 import click
@@ -11,6 +13,18 @@ from pynrfjprog import API
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
+
+def get_device_dev_path(sn: int):
+	"""
+	Finds X in /dev/ttyACMX for device given serial number
+	"""
+	result = run(["fusb"], stderr=PIPE, stdout=PIPE)
+	if result.stderr != b'':
+		raise ValueError(f"Error from subproces.run call: {result.stderr}")
+	pattern = re.compile(rf"(/dev/ttyACM\d) - SEGGER_J-Link_(\d*{sn})")
+	match = pattern.search(result.stdout.decode("utf-8"))
+	if match is not None:
+		return match.group(1)
 
 class NordicDK(ABC):
 	SERIAL_NUMBER = None
@@ -65,6 +79,7 @@ class RTTComms:
 		self.api.write_u32(ADDRESS, DATA, IS_FLASH)
 
 	def read_continuously(self, freq: int=2):
+		logger.debug(f"Reading from {self.hardware} RTT channel at freq: {freq}")
 		hold = time.time()
 		while True:
 			if (time.time() - hold) > (1/freq):
@@ -87,12 +102,19 @@ class UARTComms:
 		self.ser = serial.Serial(port, baudrate, timeout=1)
 
 	def read(self, nbytes: int=CommParameters.BYTES_TO_READ.value):
-		return self.ser.read(nbytes)
+		ret = self.ser.read(nbytes)
+		if ret != b'':
+			logger.info(f"UART: {ret}")
+		return ret
 
 	def readline(self):
-		return self.ser.readline()
+		ret = self.ser.readline()
+		if ret != b'':
+			logger.info(f"UART: {ret}")
+		return ret
 
 	def read_continuously(self, freq: int=2):
+		logger.debug(f"Reading from {self.port} UART channel at freq: {freq}")
 		hold = time.time()
 		while True:
 			if (time.time() - hold) > (1/freq):
@@ -106,19 +128,17 @@ class UARTComms:
 
 @click.command()
 @click.option("-c", '--channel',required=True,	type=click.Choice(['uart', 'rtt'], case_sensitive=False),
-help="UART [requires --port] or RTT channel [requires --device]")
+help="UART or RTT")
 @click.option("-d", '--device',	required=True,	type=click.Choice(['client', 'server']),
-help="client (peripheral) or server (central) device")
-def main(device, channel, port):
+help="Client (peripheral) or server (central) device")
+def main(device, channel):
+	dev = Client if device == "client" else Server
 	if channel == "uart":
-		if port is None:
-			raise ValueError("uart requires --port to be specified")
+		port = get_device_dev_path(dev.SERIAL_NUMBER)
 		uart = UARTComms(115200, port)
 		uart.read_continuously()
 	else:
-		if device is None:
-			raise ValueError("rtt requires --device to be specified")
-		rtt = RTTComms(Client) if channel == "client" else RTTComms(Server)
+		rtt = RTTComms(dev)
 		rtt.read_continuously()
 
 if __name__ == "__main__":
