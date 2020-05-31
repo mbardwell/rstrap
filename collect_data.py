@@ -33,11 +33,11 @@ class NordicDK(ABC):
 	SERIAL_NUMBER = None
 	DEV_FAMILY = None
 
-class Client(NordicDK):
+class Peripheral(NordicDK):
 	SERIAL_NUMBER = 682428779
 	DEV_FAMILY = 'NRF52'
 
-class Server(NordicDK):
+class Central(NordicDK):
 	SERIAL_NUMBER = 681261902
 	DEV_FAMILY = 'NRF51'
 
@@ -139,10 +139,10 @@ class UARTComms:
 @click.command()
 @click.option("-c", '--channel',required=True,	type=click.Choice(['uart', 'rtt'], case_sensitive=False),
 help="UART or RTT")
-@click.option("-d", '--device',	required=True,	type=click.Choice(['client', 'server']),
-help="Client (peripheral) or server (central) device")
+@click.option("-d", '--device',	required=True,	type=click.Choice(['peripheral', 'central']),
+help="Peripheral or central device")
 def main(device, channel):
-	dev = Client if device == "client" else Server
+	dev = Peripheral if device == "peripheral" else Central
 	if channel == "uart":
 		port = get_device_dev_path(dev.SERIAL_NUMBER)
 		uart = UARTComms(115200, port)
