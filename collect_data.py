@@ -1,6 +1,9 @@
 import logging
 import re
+import sys
 import time
+import threading
+
 from abc import ABC
 from enum import Enum
 from subprocess import run, PIPE, STDOUT
@@ -69,7 +72,8 @@ class RTTComms:
 			self.api.rtt_start()
 			time.sleep(1)
 		logs = self.api.rtt_read(0, nbytes)
-		logger.info(f"read: {logs}")
+		if logs != "":
+			logger.info(f"read: {logs}")
 		return logs
 
 	def erase_device(self):
@@ -100,6 +104,7 @@ class UARTComms:
 		self.baudrate = baudrate
 		self.port = port
 		self.ser = serial.Serial(port, baudrate, timeout=1)
+		threading.Thread(target=self.write, daemon=True).start()
 
 	def read(self, nbytes: int=CommParameters.BYTES_TO_READ.value):
 		ret = self.ser.read(nbytes)
@@ -120,6 +125,11 @@ class UARTComms:
 			if (time.time() - hold) > (1/freq):
 				self.read()
 				hold = time.time()
+
+	def write(self):
+		for line in sys.stdin:
+			logger.debug(f"writing line {line.encode('utf-8')}")
+			self.ser.write(line.encode('utf-8'))
 
 	def __del__(self):
 		self.ser.close()
