@@ -1,2 +1,7 @@
 **/_build/
 *.python-version
+*.pyc
+*.egg-info
+.vscode/**
+*.html
+*.xml
