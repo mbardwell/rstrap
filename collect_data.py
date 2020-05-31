@@ -104,7 +104,7 @@ class UARTComms:
 		self.baudrate = baudrate
 		self.port = port
 		self.ser = serial.Serial(port, baudrate, timeout=1)
-		threading.Thread(target=self.write, daemon=True).start()
+		threading.Thread(target=self.write_stdin, daemon=True).start()
 
 	def read(self, nbytes: int=CommParameters.BYTES_TO_READ.value):
 		ret = self.ser.read(nbytes)
@@ -126,10 +126,13 @@ class UARTComms:
 				self.read()
 				hold = time.time()
 
-	def write(self):
+	def write_stdin(self):
 		for line in sys.stdin:
-			logger.debug(f"writing line {line.encode('utf-8')}")
-			self.ser.write(line.encode('utf-8'))
+			self.write(line)
+
+	def write(self, message: str):
+		logger.debug(f"writing line {message.encode('utf-8')}")
+		self.ser.write(message.encode("utf-8"))
 
 	def __del__(self):
 		self.ser.close()
