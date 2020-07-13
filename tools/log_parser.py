@@ -21,8 +21,8 @@ class Patterns:
 					- command byte
 						- data bytes (between 0-N)
 	"""
-	nrfconnect = {"2": {"tension": {"05": "00"}}}
-
+	nrfconnect = {"2": {"tension": {"05": "00"}, "accel-x": {"00": "00"}, "accel-y": {"01": "00"}, "accel-z": {"02": "00"}}}
+	
 
 class Parser:
 	def __init__(self, logger: "Patterns.class_attribute" = Patterns.nrfconnect, version: str = "2"):
@@ -53,12 +53,19 @@ class Parser:
 		for line in log:
 			for sensor_type in self.pattern:
 				for sensor_byte in self.pattern[sensor_type]:
-					command_byte = self.pattern[sensor_type][sensor_byte]
-					match = re.compile(rf"({TIMESTAMP_PATTERN}).*{BYTE_PREFACE} {sensor_byte}-{command_byte}-([\d-]+)").search(line)
-					if match:
-						self.logger.info(
-							f"{sensor_type} ({sensor_byte}{command_byte}) match: {match.group(1)} {self.dashed_ascii_to_decimal(match.group(2))}"
-							)
+					if "accel" not in sensor_type: # hack, see else comment
+						command_byte = self.pattern[sensor_type][sensor_byte]
+						match = re.compile(rf"({TIMESTAMP_PATTERN}).*{BYTE_PREFACE} {sensor_byte}-{command_byte}-([\d\-A-F]+)").search(line)
+						if match:
+							self.logger.info(
+								f"{sensor_type} ({sensor_byte}{command_byte}) match: {match.group(1)} {self.dashed_ascii_to_decimal(match.group(2))}"
+								)
+					else: # hack - once command byte has been added to accel-x/y/z delete this if/else statement
+						match = re.compile(rf"({TIMESTAMP_PATTERN}).*{BYTE_PREFACE} {sensor_byte}-([\d\-A-F]+)").search(line)
+						if match:
+							self.logger.info(
+								f"{sensor_type} ({sensor_byte}) match: {match.group(1)} {self.dashed_ascii_to_decimal(match.group(2))}"
+								)
 
 	def dashed_ascii_to_decimal(self, dashed_ascii: str) -> str:
 		"""
