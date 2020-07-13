@@ -1,6 +1,7 @@
 import logging
 import re
 from pathlib import Path
+from typing import List
 
 import click
 
@@ -22,6 +23,7 @@ class Patterns:
 	"""
 	nrfconnect = {"2": {"tension": {"05": "00"}}}
 
+
 class Parser:
 	def __init__(self, logger: "Patterns.class_attribute" = Patterns.nrfconnect, version: str = "2"):
 		"""
@@ -37,13 +39,22 @@ class Parser:
 			read_file = f.readlines()
 			return read_file
 
-	def parse_nrfconnect_log(self, log: str):
-		TIMESTAMP_PATTERN = "\d\d:\d\d:\d\d.\d\d\d"
+	def get_nrfconnect_app_or_pc(self, log: List[str]):
+		for line in log:
+			if "pc-nrfconnect" in line:
+				self.logger.info("nRFConnect PC logger detected")
+				return "pc"
+		self.logger.info("nRFConnect cellphone app logger detected")
+		return "app"
+
+	def parse_nrfconnect_log(self, log: List[str]):
+		TIMESTAMP_PATTERN = r"\d{2}:\d{2}:\d{2}.\d{3}"
+		BYTE_PREFACE = r"\(0x\)" if self.get_nrfconnect_app_or_pc(log) == "app" else r"\(0x\):"
 		for line in log:
 			for sensor_type in self.pattern:
 				for sensor_byte in self.pattern[sensor_type]:
 					command_byte = self.pattern[sensor_type][sensor_byte]
-					match = re.compile(rf"({TIMESTAMP_PATTERN}).*\(0x\) {sensor_byte}-{command_byte}-([\d-]+)").search(line)
+					match = re.compile(rf"({TIMESTAMP_PATTERN}).*{BYTE_PREFACE} {sensor_byte}-{command_byte}-([\d-]+)").search(line)
 					if match:
 						self.logger.info(
 							f"{sensor_type} ({sensor_byte}{command_byte}) match: {match.group(1)} {self.dashed_ascii_to_decimal(match.group(2))}"
