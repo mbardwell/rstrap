@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="rstrap.comms",
+    name="rstrap",
     version="0.0.1",
     author="Mike Bardwell",
     author_email="mikeybards@gmail.com",
