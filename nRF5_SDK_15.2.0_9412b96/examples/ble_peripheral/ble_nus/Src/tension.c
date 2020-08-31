@@ -165,7 +165,7 @@ void hx711_sample()
     }
     EXIT:
 
-    m_sample.value = hx711_convert(m_sample.value);
+    hx711_convert_24_to_32_sbit(&m_sample.value);
     
     NRF_LOG_DEBUG("number of bits: %d. ADC val: 0x%x or 0d%d", 
     m_sample.count,
@@ -180,43 +180,17 @@ void hx711_sample()
     }
 }
 
-/**
- * @brief Function for converting HX711 sample
- */
-uint32_t hx711_convert(uint32_t sample)
+void hx711_convert_24_to_32_sbit(int32_t* sample)
 {
-    uint32_t converted = (sample << 8) >> 8;
-    if (converted > 0xFFFFFF)
+    if (*sample > 0xFFFFFF)
     {
-        NRF_LOG_WARNING("converted value greater than possible for 24-bit sample");
-        // TODO: Deal with this
-    }
-
-    return converted;
-}
-
-nrfx_err_t hx711_sample_convert(uint32_t *p_value)
-{
-    nrfx_err_t err_code = NRFX_ERROR_INVALID_STATE;
-
-    if (p_value == NULL)
-    {
-        NRF_LOG_WARNING("function does not accept null pointers");
-        err_code = NRFX_ERROR_NULL;
+        NRF_LOG_WARNING("value greater than possible for 24-bit sample. Setting to -1");
+        *sample = -1;
     }
     else
-    {        
-        if (m_sample.status == Unread)
-        {
-            uint32_t converted_sample = hx711_convert(m_sample.value);
-            *p_value = converted_sample;
-            m_sample.status = Read;
-            err_code = NRFX_SUCCESS;
-        }
-        hx711_start();
+    {
+        if (*sample & 0x800000) *sample |= 0xff << 24;
     }
-    
-    return err_code;
 }
 
 void lock_in_tension_threshold(uint32_t safety_factor)
