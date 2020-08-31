@@ -189,9 +189,7 @@ void hx711_convert_24_to_32_sbit(int32_t* sample)
     }
     else
     {
-        NRF_LOG_DEBUG("converting: 0x%x or 0d%d\n", *sample, *sample); 
         if (*sample & 0x800000) *sample |= 0xff << 24;
-        NRF_LOG_DEBUG("converted: 0x%x or 0d%d\n", *sample, *sample); 
     }
 }
 
