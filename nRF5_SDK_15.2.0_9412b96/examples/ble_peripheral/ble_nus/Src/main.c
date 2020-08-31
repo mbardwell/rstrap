@@ -273,30 +273,31 @@ static void nus_update_tension(void)
     hx711_start();
 }
 
-void nus_update_tension_callback(uint32_t* tension)
+void nus_update_tension_callback(int32_t* tension)
 {
-    uint16_t max_n_ascii_characters = 1+1+8; // Byte order: nus tag, update tag, eight digits for maximum tension reading
+    uint8_t sign = 0x2B; // sign is default + in ascii
+    uint16_t max_n_ascii_characters = 1+1+1+7; // Byte order: nus tag, command tag, sign, seven digits for maximum tension reading
     uint8_t tension_in_ascii[max_n_ascii_characters];
 
     NRF_LOG_INFO("sending tension: %d", *tension);
 
-
-    uint32_t temp_tension = *tension;
-    uint16_t count = 2;
-    // at minimum send the nus tag and one digit
-    if (temp_tension == 0)
+    int32_t temp_tension = *tension;
+    uint16_t count = 3;
+    do
     {
-        count++; // if tension is already 0, add a byte to represent the "0" digit
-    }
-    while (temp_tension != 0)
-    {
-        temp_tension /= 10;
         count++;
-    }
+        temp_tension /= 10;
+    } while (temp_tension != 0);
 
+    if (*tension < 0) {
+        sign = 0x2D;
+        *tension = abs(*tension);
+    }
+    
     tension_in_ascii[0] = NUS_TENSION_TAG;
     tension_in_ascii[1] = UPDATE;
-    __itoa(*tension, (char*) tension_in_ascii+2, 10);
+    tension_in_ascii[2] = sign;
+    __itoa(*tension, (char*) tension_in_ascii+3, 10);
     send_over_nus(tension_in_ascii, &count);
 }
 

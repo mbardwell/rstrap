@@ -5,7 +5,7 @@
 #include "ble_nus.h"
 #include "nrf_drv_gpiote.h"
 
-typedef void (*hx711_evt_handler_t) (uint32_t* data);
+typedef void (*hx711_evt_handler_t) (int32_t* data);
 
 typedef void (*tension_alert_evt_handler_t) ();
 
@@ -33,7 +33,7 @@ enum hx711_sample_status
 
 struct hx711_sample
 {
-    uint32_t   value;   // buffer for ADC read
+    int32_t    value;   // ADC buffer. Output is 24-bit 2's complement
     uint8_t    count;   // number of bitshifts. Read complete when count == ADC_RES 
     enum hx711_sample_status status;
 };
@@ -43,7 +43,7 @@ struct tension_threshold_t
     bool is_set;
     bool should_be_set;
     float safety_factor;
-    uint32_t value;
+    int32_t value; 
     uint32_t alert_led_pin;
     uint32_t setup_led_pin;
     uint32_t okay_led_pin;
@@ -67,16 +67,15 @@ void hx711_start();
  */
 void hx711_sample();
 
-
-uint32_t hx711_convert(uint32_t sample);
 /**
- * @brief Blocking function for executing a single ADC conversion.
- *
- * This function starts a single conversion, waits for it to finish, and returns the result.
- * This function will fail if the HX711 is busy.
+ * @brief Function for converting HX711 sample to 32 bit signed format
  * 
- * @param[out] p_value Pointer to the location where the result should be placed.
+ * HX711 output is 24 bits of data in 2's complement format.
+ * The minimum value is 0x800000: -8388608
+ *                      0xFFFFFF: -1
+ *                      0x000000:  0
+ * The maximum value is 0x7FFFFF:  8388607
  */
-nrfx_err_t hx711_sample_convert(uint32_t *p_value);
+void hx711_convert_24_to_32_sbit(int32_t* sample);
 
 void lock_in_tension_threshold(uint32_t safety_factor);
